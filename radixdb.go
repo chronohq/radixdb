@@ -37,3 +37,28 @@ func (rdb *RadixDB) Len() uint64 {
 
 	return rdb.numNodes
 }
+
+// longestCommonPrefix compares the two given byte slices, and returns the
+// longest common prefix. It ensures memory-safety by establishing an index
+// boundary based on the length of the shorter byte slice.
+func longestCommonPrefix(a, b []byte) []byte {
+	minLen := len(a)
+
+	if len(b) < minLen {
+		minLen = len(b)
+	}
+
+	var i int
+
+	for i = 0; i < minLen; i++ {
+		if a[i] != b[i] {
+			break
+		}
+	}
+
+	if i == 0 {
+		return nil
+	}
+
+	return a[:i]
+}
