@@ -1,6 +1,9 @@
 package radixdb
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 func TestLongestCommonPrefix(t *testing.T) {
 	tests := []struct {
@@ -22,7 +25,7 @@ func TestLongestCommonPrefix(t *testing.T) {
 	for _, test := range tests {
 		subject := longestCommonPrefix(test.a, test.b)
 
-		if string(subject) != string(test.expected) {
+		if !bytes.Equal(subject, test.expected) {
 			t.Errorf("(%q,%q): got:%q, want:%q", test.a, test.b, subject, test.expected)
 		}
 	}
