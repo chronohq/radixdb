@@ -1,6 +1,7 @@
 # RadixDB
 
 [![go workflow](https://github.com/chronohq/radixdb/actions/workflows/go.yml/badge.svg)](https://github.com/chronohq/radixdb/actions/workflows/go.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/chronohq/radixdb.svg)](https://pkg.go.dev/github.com/chronohq/radixdb)
 [![mit license](https://img.shields.io/badge/license-MIT-green)](/LICENSE)
 
 RadixDB is a lightweight database built on a [Radix tree](https://en.wikipedia.org/wiki/Radix_tree) structure.
