@@ -30,3 +30,32 @@ func TestLongestCommonPrefix(t *testing.T) {
 		}
 	}
 }
+
+func TestFindCompatibleChild(t *testing.T) {
+	root := &node{
+		children: []*node{
+			{key: []byte("apple")},
+			{key: []byte("banana")},
+			{key: []byte("citron")},
+		},
+	}
+
+	tests := []struct {
+		key      []byte
+		expected []byte
+	}{
+		{[]byte("apple"), []byte("apple")},
+		{[]byte("applet"), []byte("apple")},
+		{[]byte("bandage"), []byte("banana")},
+		{[]byte("coconut"), []byte("citron")},
+		{[]byte("durian"), nil},
+		{[]byte("orange"), nil},
+	}
+
+	for _, test := range tests {
+		child := root.findCompatibleChild([]byte(test.key))
+		if (child == nil && test.expected != nil) || (child != nil && !bytes.Equal(child.key, test.expected)) {
+			t.Errorf("findCompatibleChild(%q): got:%q, want:%q", test.key, child.key, test.expected)
+		}
+	}
+}

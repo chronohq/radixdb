@@ -38,6 +38,21 @@ func (rdb *RadixDB) Len() uint64 {
 	return rdb.numNodes
 }
 
+// findCompatibleChild searches through the child nodes of the receiver node.
+// It returns the first child node that shares a common prefix. If no child is
+// found, the function returns nil.
+func (node node) findCompatibleChild(key []byte) *node {
+	for _, child := range node.children {
+		prefix := longestCommonPrefix(child.key, key)
+
+		if len(prefix) > 0 {
+			return child
+		}
+	}
+
+	return nil
+}
+
 // longestCommonPrefix compares the two given byte slices, and returns the
 // longest common prefix. It ensures memory-safety by establishing an index
 // boundary based on the length of the shorter byte slice.
