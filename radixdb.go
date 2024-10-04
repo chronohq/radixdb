@@ -38,6 +38,38 @@ func (rdb *RadixDB) Len() uint64 {
 	return rdb.numNodes
 }
 
+// splitNode divides a node into two nodes based on a common prefix, creating
+// an intermediate parent node. It does so by updating the keys of the current
+// and new nodes to contain only the suffixes after the common prefix.
+func (rdb *RadixDB) splitNode(parent *node, current *node, newNode *node, commonPrefix []byte) {
+	rdb.mu.Lock()
+	defer rdb.mu.Unlock()
+
+	current.key = current.key[len(commonPrefix):]
+	newNode.key = newNode.key[len(commonPrefix):]
+
+	newParent := &node{
+		key:      commonPrefix,
+		children: []*node{current, newNode},
+	}
+
+	// Splitting the root node only requires setting the new branch as root.
+	if parent == nil && current == rdb.root {
+		rdb.root = newParent
+		rdb.numNodes += 1
+		return
+	}
+
+	// Update the parent of the current node to point at splitNode.
+	for i, child := range parent.children {
+		if child == current {
+			parent.children[i] = newParent
+			rdb.numNodes += 1
+			return
+		}
+	}
+}
+
 // findCompatibleChild searches through the child nodes of the receiver node.
 // It returns the first child node that shares a common prefix. If no child is
 // found, the function returns nil.

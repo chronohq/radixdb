@@ -59,3 +59,60 @@ func TestFindCompatibleChild(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitNode(t *testing.T) {
+	rdb := &RadixDB{
+		root: &node{
+			key:   []byte("apple"),
+			value: "juice",
+		},
+	}
+
+	newNode := &node{
+		key:   []byte("appstore"),
+		value: "registry",
+	}
+
+	// Test root split.
+	commonPrefix := longestCommonPrefix(rdb.root.key, newNode.key)
+	rdb.splitNode(nil, rdb.root, newNode, commonPrefix)
+
+	if rdb.Len() != 1 && len(rdb.root.children) != 1 {
+		t.Errorf("tree size: got:%d, want:1", rdb.Len())
+	}
+
+	if !bytes.Equal(rdb.root.key, commonPrefix) {
+		t.Errorf("invalid root key: got:%q, want:%q", commonPrefix, rdb.root.key)
+	}
+
+	expectedKey := []byte("store")
+	if !bytes.Equal(newNode.key, expectedKey) {
+		t.Errorf("invalid newNode key: got:%q, want:%q", newNode.key, expectedKey)
+	}
+
+	// Test non-root split: newNode(app[store]) is the parent.
+	strawberryNode := &node{
+		key:   []byte("strawberry"),
+		value: "jam",
+	}
+
+	commonPrefix = longestCommonPrefix(newNode.key, strawberryNode.key)
+	rdb.splitNode(rdb.root, newNode, strawberryNode, commonPrefix)
+
+	if rdb.Len() != 2 && len(rdb.root.children) != 2 {
+		t.Errorf("tree size: got:%d, want:2", rdb.Len())
+	}
+
+	// newNode should now be further split to "st[ore]".
+	expectedKey = []byte("ore")
+
+	if !bytes.Equal(newNode.key, expectedKey) {
+		t.Errorf("invalid newNode.key: got:%q, want:%q", newNode.key, expectedKey)
+	}
+
+	// strawberryNode should now be split to "st[rawberry]".
+	expectedKey = []byte("rawberry")
+	if !bytes.Equal(strawberryNode.key, expectedKey) {
+		t.Errorf("invalid strawberryNode.key: got:%q, want:%q", newNode.key, expectedKey)
+	}
+}
