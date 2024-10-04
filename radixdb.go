@@ -1,7 +1,19 @@
 // Package radixdb provides a persistable Radix tree implementation.
 package radixdb
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
+
+var (
+	// ErrDuplicateKey is returned when an insertion is attempted using a
+	// key that already exists in the database.
+	ErrDuplicateKey = errors.New("cannot insert duplicate key")
+
+	// ErrNilKey is returned when an insertion is attempted using a nil key.
+	ErrNilKey = errors.New("key cannot be nil")
+)
 
 // node represents an in-memory node of a Radix tree. This implementation
 // is designed to be memory-efficient by using a minimal set of fields to
@@ -22,12 +34,13 @@ type RadixDB struct {
 	mu       sync.RWMutex // RWLock for concurrency management.
 }
 
-// Empty returns true if the tree is empty.
+// Empty returns true if the tree is empty. This function is the exported
+// concurrency-safe version of empty().
 func (rdb *RadixDB) Empty() bool {
 	rdb.mu.RLock()
 	defer rdb.mu.RUnlock()
 
-	return rdb.root == nil && rdb.numNodes == 0
+	return rdb.empty()
 }
 
 // Len returns the number of nodes in the tree as uint64.
@@ -38,13 +51,84 @@ func (rdb *RadixDB) Len() uint64 {
 	return rdb.numNodes
 }
 
+// Insert adds a new key-value pair to the tree. The function returns an error
+// if a duplicate or nil key is detected. A write lock is acquired during the
+// operation to ensure concurrency safety.
+func (rdb *RadixDB) Insert(key []byte, value any) error {
+	if key == nil {
+		return ErrNilKey
+	}
+
+	rdb.mu.Lock()
+	defer rdb.mu.Unlock()
+
+	newNode := &node{
+		key:      key,
+		value:    value,
+		children: []*node{},
+	}
+
+	// The tree is empty: Simply set newNode as the root.
+	if rdb.empty() {
+		rdb.root = newNode
+		rdb.numNodes = 1
+
+		return nil
+	}
+
+	var parent *node
+	var current = rdb.root
+
+	for {
+		prefix := longestCommonPrefix(current.key, key)
+
+		// Exact match: Duplicate insertion is disallowed.
+		if len(prefix) == len(current.key) && len(prefix) == len(newNode.key) {
+			return ErrDuplicateKey
+		}
+
+		// Partial match: Insert newNode by splitting the curent node.
+		// Meeting this condition means that the key has been exhausted.
+		if len(prefix) > 0 && len(prefix) < len(current.key) {
+			rdb.splitNode(parent, current, newNode, prefix)
+			return nil
+		}
+
+		// Search for a child node whose key is compatible with the remaining
+		// portion of the key. If there is no such child, it means that we are
+		// at the deepest level of the tree for the given key.
+		key = key[len(prefix):]
+		nextNode := current.findCompatibleChild(key)
+
+		if nextNode == nil {
+			if len(current.children) > 0 {
+				current.children = append(current.children, newNode)
+				rdb.numNodes += 1
+			} else {
+				rdb.splitNode(parent, current, newNode, prefix)
+			}
+
+			return nil
+		}
+
+		// Reaching this point means that a compatible child was found.
+		// Update relevant iterators and continue traversing the tree until
+		// we reach a leaf node or no further nodes are available.
+		newNode.key = newNode.key[len(prefix):]
+		parent = current
+		current = nextNode
+	}
+}
+
+// empty returns true if the tree is empty.
+func (rdb *RadixDB) empty() bool {
+	return rdb.root == nil && rdb.numNodes == 0
+}
+
 // splitNode divides a node into two nodes based on a common prefix, creating
 // an intermediate parent node. It does so by updating the keys of the current
 // and new nodes to contain only the suffixes after the common prefix.
 func (rdb *RadixDB) splitNode(parent *node, current *node, newNode *node, commonPrefix []byte) {
-	rdb.mu.Lock()
-	defer rdb.mu.Unlock()
-
 	current.key = current.key[len(commonPrefix):]
 	newNode.key = newNode.key[len(commonPrefix):]
 

@@ -116,3 +116,64 @@ func TestSplitNode(t *testing.T) {
 		t.Errorf("invalid strawberryNode.key: got:%q, want:%q", newNode.key, expectedKey)
 	}
 }
+
+func TestInsert(t *testing.T) {
+	rdb := &RadixDB{}
+
+	// Test nil key insertion.
+	if err := rdb.Insert(nil, "nil-key"); err != ErrNilKey {
+		t.Errorf("expected error: got:nil, want:%v", ErrNilKey)
+	}
+
+	// Test standard insertion.
+	if err := rdb.Insert([]byte("apple"), "juice"); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// Test duplicate key insertion.
+	if err := rdb.Insert([]byte("apple"), "cider"); err != ErrDuplicateKey {
+		t.Errorf("expected error: got:nil, want:%v", ErrDuplicateKey)
+	}
+
+	if len := rdb.Len(); len != 1 {
+		t.Errorf("expected Len(): got:%d, want:1", len)
+	}
+
+	// Test non-common key insertion. The node should be a direct child of root.
+	if err := rdb.Insert([]byte("banana"), "smoothie"); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	var found bool
+	for _, node := range rdb.root.children {
+		if bytes.Equal(node.key, []byte("banana")) {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("banana expected to be a child of root")
+	}
+
+	if len := rdb.Len(); len != 2 {
+		t.Errorf("expected Len(): got:%d, want:2", len)
+	}
+
+	// Test common prefix insertion.
+	if err := rdb.Insert([]byte("applet"), "app"); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if err := rdb.Insert([]byte("apricot"), "farm"); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if err := rdb.Insert([]byte("baking"), "show"); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if len := rdb.Len(); len != 5 {
+		t.Errorf("expected Len(): got:%d, want:5", len)
+	}
+}
