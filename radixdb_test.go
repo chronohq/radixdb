@@ -180,20 +180,22 @@ func TestInsert(t *testing.T) {
 	}
 
 	// Mild fuzzing: Insert random keys for memory errors.
-	numRandomInserts := 2000
+	numRandomInserts := 3000
 	numRecordsBefore := rdb.Len()
 	numRecordsExpected := uint64(numRandomInserts + int(numRecordsBefore))
 
 	for i := 0; i < numRandomInserts; i++ {
-		// Random key length between 1 and 32 bytes.
-		keyLength := mrand.IntN(32-1) + 1
+		// Random key length between 4 and 128 bytes.
+		keyLength := mrand.IntN(128-4) + 4
 		randomKey := make([]byte, keyLength)
 
 		if _, err := rand.Read(randomKey); err != nil {
 			t.Fatal(err)
 		}
 
-		rdb.Insert(randomKey, randomKey)
+		if err := rdb.Insert(randomKey, randomKey); err != nil {
+			t.Fatalf("%v: %v", randomKey, err)
+		}
 	}
 
 	if len := rdb.Len(); len != numRecordsExpected {

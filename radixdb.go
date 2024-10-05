@@ -107,7 +107,7 @@ func (rdb *RadixDB) Insert(key []byte, value any) error {
 				}
 			}
 
-			rdb.numNodes += 1
+			rdb.numNodes++
 			return nil
 		}
 
@@ -127,16 +127,25 @@ func (rdb *RadixDB) Insert(key []byte, value any) error {
 		if nextNode == nil {
 			newNode.key = key
 
-			if parent == nil {
-				rdb.root = &node{
-					key:      prefix,
-					children: []*node{current, newNode},
+			if current == rdb.root {
+				// A root node with nil key means that it's an intermediate node
+				// with existing edges to child nodes.
+				if current.key == nil && len(current.children) > 0 {
+					current.children = append(current.children, newNode)
+				} else {
+					rdb.root = &node{
+						key:      prefix,
+						children: []*node{current, newNode},
+					}
 				}
+
+				rdb.numNodes++
+				return nil
 			} else {
 				parent.children = append(parent.children, newNode)
 			}
 
-			rdb.numNodes += 1
+			rdb.numNodes++
 			return nil
 		}
 
@@ -169,7 +178,7 @@ func (rdb *RadixDB) splitNode(parent *node, current *node, newNode *node, common
 	// Splitting the root node only requires setting the new branch as root.
 	if parent == nil && current == rdb.root {
 		rdb.root = newParent
-		rdb.numNodes += 1
+		rdb.numNodes++
 		return
 	}
 
@@ -177,7 +186,7 @@ func (rdb *RadixDB) splitNode(parent *node, current *node, newNode *node, common
 	for i, child := range parent.children {
 		if child == current {
 			parent.children[i] = newParent
-			rdb.numNodes += 1
+			rdb.numNodes++
 			return
 		}
 	}
