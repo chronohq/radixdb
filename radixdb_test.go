@@ -2,6 +2,8 @@ package radixdb
 
 import (
 	"bytes"
+	"crypto/rand"
+	mrand "math/rand/v2"
 	"testing"
 )
 
@@ -78,7 +80,7 @@ func TestSplitNode(t *testing.T) {
 	rdb.splitNode(nil, rdb.root, newNode, commonPrefix)
 
 	if rdb.Len() != 1 && len(rdb.root.children) != 1 {
-		t.Errorf("tree size: got:%d, want:1", rdb.Len())
+		t.Errorf("Len(): got:%d, want:1", rdb.Len())
 	}
 
 	if !bytes.Equal(rdb.root.key, commonPrefix) {
@@ -100,7 +102,7 @@ func TestSplitNode(t *testing.T) {
 	rdb.splitNode(rdb.root, newNode, strawberryNode, commonPrefix)
 
 	if rdb.Len() != 2 && len(rdb.root.children) != 2 {
-		t.Errorf("tree size: got:%d, want:2", rdb.Len())
+		t.Errorf("Len(): got:%d, want:2", rdb.Len())
 	}
 
 	// newNode should now be further split to "st[ore]".
@@ -136,7 +138,7 @@ func TestInsert(t *testing.T) {
 	}
 
 	if len := rdb.Len(); len != 1 {
-		t.Errorf("expected Len(): got:%d, want:1", len)
+		t.Errorf("Len(): got:%d, want:1", len)
 	}
 
 	// Test non-common key insertion. The node should be a direct child of root.
@@ -157,7 +159,7 @@ func TestInsert(t *testing.T) {
 	}
 
 	if len := rdb.Len(); len != 2 {
-		t.Errorf("expected Len(): got:%d, want:2", len)
+		t.Errorf("Len(): got:%d, want:2", len)
 	}
 
 	// Test common prefix insertion.
@@ -174,6 +176,27 @@ func TestInsert(t *testing.T) {
 	}
 
 	if len := rdb.Len(); len != 5 {
-		t.Errorf("expected Len(): got:%d, want:5", len)
+		t.Errorf("Len(): got:%d, want:5", len)
+	}
+
+	// Mild fuzzing: Insert random keys for memory errors.
+	numRandomInserts := 2000
+	numRecordsBefore := rdb.Len()
+	numRecordsExpected := uint64(numRandomInserts + int(numRecordsBefore))
+
+	for i := 0; i < numRandomInserts; i++ {
+		// Random key length between 1 and 32 bytes.
+		keyLength := mrand.IntN(32-1) + 1
+		randomKey := make([]byte, keyLength)
+
+		if _, err := rand.Read(randomKey); err != nil {
+			t.Fatal(err)
+		}
+
+		rdb.Insert(randomKey, randomKey)
+	}
+
+	if len := rdb.Len(); len != numRecordsExpected {
+		t.Errorf("Len(): got:%d, want:%d", len, numRecordsExpected)
 	}
 }

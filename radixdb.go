@@ -87,6 +87,30 @@ func (rdb *RadixDB) Insert(key []byte, value any) error {
 			return ErrDuplicateKey
 		}
 
+		// newNode's key matches the longest common prefix and is shorter than
+		// the current node's key. Therefore, newNode logically becomes the
+		// parent of the current node, which requires restructuring the tree.
+		//
+		// For example, suppose newNode.key is "app" and current.key is "apple".
+		// The common prefix is "app", and thus "app" becomes the parent of "le".
+		if len(prefix) == len(newNode.key) && len(prefix) < len(current.key) {
+			current.key = current.key[len(newNode.key):]
+			newNode.children = append(newNode.children, current)
+
+			if parent == nil {
+				rdb.root = newNode
+			} else {
+				for i, child := range parent.children {
+					if child == current {
+						parent.children[i] = newNode
+					}
+				}
+			}
+
+			rdb.numNodes += 1
+			return nil
+		}
+
 		// Partial match: Insert newNode by splitting the curent node.
 		// Meeting this condition means that the key has been exhausted.
 		if len(prefix) > 0 && len(prefix) < len(current.key) {
@@ -101,13 +125,18 @@ func (rdb *RadixDB) Insert(key []byte, value any) error {
 		nextNode := current.findCompatibleChild(key)
 
 		if nextNode == nil {
-			if len(current.children) > 0 {
-				current.children = append(current.children, newNode)
-				rdb.numNodes += 1
+			newNode.key = key
+
+			if parent == nil {
+				rdb.root = &node{
+					key:      prefix,
+					children: []*node{current, newNode},
+				}
 			} else {
-				rdb.splitNode(parent, current, newNode, prefix)
+				parent.children = append(parent.children, newNode)
 			}
 
+			rdb.numNodes += 1
 			return nil
 		}
 
