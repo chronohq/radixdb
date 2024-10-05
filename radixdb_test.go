@@ -123,17 +123,17 @@ func TestInsert(t *testing.T) {
 	rdb := &RadixDB{}
 
 	// Test nil key insertion.
-	if err := rdb.Insert(nil, "nil-key"); err != ErrNilKey {
+	if err := rdb.Insert(nil, []byte("nil-key")); err != ErrNilKey {
 		t.Errorf("expected error: got:nil, want:%v", ErrNilKey)
 	}
 
 	// Test standard insertion.
-	if err := rdb.Insert([]byte("apple"), "juice"); err != nil {
+	if err := rdb.Insert([]byte("apple"), []byte("juice")); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
 	// Test duplicate key insertion.
-	if err := rdb.Insert([]byte("apple"), "cider"); err != ErrDuplicateKey {
+	if err := rdb.Insert([]byte("apple"), []byte("cider")); err != ErrDuplicateKey {
 		t.Errorf("expected error: got:nil, want:%v", ErrDuplicateKey)
 	}
 
@@ -142,7 +142,7 @@ func TestInsert(t *testing.T) {
 	}
 
 	// Test non-common key insertion. The node should be a direct child of root.
-	if err := rdb.Insert([]byte("banana"), "smoothie"); err != nil {
+	if err := rdb.Insert([]byte("banana"), []byte("smoothie")); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
@@ -163,15 +163,15 @@ func TestInsert(t *testing.T) {
 	}
 
 	// Test common prefix insertion.
-	if err := rdb.Insert([]byte("applet"), "app"); err != nil {
+	if err := rdb.Insert([]byte("applet"), []byte("app")); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	if err := rdb.Insert([]byte("apricot"), "farm"); err != nil {
+	if err := rdb.Insert([]byte("apricot"), []byte("farm")); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	if err := rdb.Insert([]byte("baking"), "show"); err != nil {
+	if err := rdb.Insert([]byte("baking"), []byte("show")); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 

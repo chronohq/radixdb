@@ -54,7 +54,7 @@ func (rdb *RadixDB) Len() uint64 {
 // Insert adds a new key-value pair to the tree. The function returns an error
 // if a duplicate or nil key is detected. A write lock is acquired during the
 // operation to ensure concurrency safety.
-func (rdb *RadixDB) Insert(key []byte, value any) error {
+func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 	if key == nil {
 		return ErrNilKey
 	}
