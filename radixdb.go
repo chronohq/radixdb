@@ -123,10 +123,9 @@ func (rdb *RadixDB) Insert(key []byte, value any) error {
 		// at the deepest level of the tree for the given key.
 		key = key[len(prefix):]
 		nextNode := current.findCompatibleChild(key)
+		newNode.key = newNode.key[len(prefix):]
 
 		if nextNode == nil {
-			newNode.key = key
-
 			if current == rdb.root {
 				// A root node with nil key means that it's an intermediate node
 				// with existing edges to child nodes.
@@ -142,7 +141,7 @@ func (rdb *RadixDB) Insert(key []byte, value any) error {
 				rdb.numNodes++
 				return nil
 			} else {
-				parent.children = append(parent.children, newNode)
+				current.children = append(current.children, newNode)
 			}
 
 			rdb.numNodes++
@@ -152,7 +151,6 @@ func (rdb *RadixDB) Insert(key []byte, value any) error {
 		// Reaching this point means that a compatible child was found.
 		// Update relevant iterators and continue traversing the tree until
 		// we reach a leaf node or no further nodes are available.
-		newNode.key = newNode.key[len(prefix):]
 		parent = current
 		current = nextNode
 	}
