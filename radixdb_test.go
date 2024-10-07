@@ -273,3 +273,21 @@ func TestInsert(t *testing.T) {
 		t.Errorf("Len(): got:%d, want:%d", len, numRecordsExpected)
 	}
 }
+
+func TestClear(t *testing.T) {
+	rdb := &RadixDB{}
+
+	rdb.Insert([]byte("k1"), []byte("v1"))
+	rdb.Insert([]byte("k2"), []byte("v2"))
+	rdb.Insert([]byte("k3"), []byte("v3"))
+
+	rdb.clear()
+
+	if len := rdb.Len(); len != 0 {
+		t.Errorf("Len(): got:%d, want:0", len)
+	}
+
+	if rdb.root != nil {
+		t.Error("expected root to be nil")
+	}
+}

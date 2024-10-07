@@ -171,6 +171,16 @@ func (rdb *RadixDB) empty() bool {
 	return rdb.root == nil && rdb.numNodes == 0
 }
 
+// clear wipes out the entire in-memory tree. This function is internal and
+// is not exported because it is intended for testing purposes.
+func (rdb *RadixDB) clear() {
+	rdb.mu.Lock()
+	defer rdb.mu.Unlock()
+
+	rdb.root = nil
+	rdb.numNodes = 0
+}
+
 // splitNode divides a node into two nodes based on a common prefix, creating
 // an intermediate parent node. It does so by updating the keys of the current
 // and new nodes to contain only the suffixes after the common prefix.
