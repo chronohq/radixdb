@@ -179,6 +179,67 @@ func TestInsert(t *testing.T) {
 		t.Errorf("Len(): got:%d, want:5", len)
 	}
 
+	// Expected tree structure:
+	// .
+	// ├─ ap ("<nil>")
+	// │  ├─ ple ("juice")
+	// │  │  └─ t ("app")
+	// │  └─ ricot ("farm")
+	// └─ ba ("<nil>")
+	//   ├─ nana ("smoothie")
+	//   └─ king ("show")
+
+	// Test path component node awareness.
+	if len := len(rdb.root.children); len != 2 {
+		t.Errorf("len(rdb.root.children): got:%d, want:2", len)
+	}
+
+	apNode := rdb.root.children[0]
+	baNode := rdb.root.children[1]
+
+	if bytes.Equal(apNode.key, []byte("ap")) {
+		if apNode.isRecord {
+			t.Errorf("node.isRecord: got:%t, want:%t", apNode.isRecord, false)
+		}
+
+		if len := len(apNode.children); len != 2 {
+			t.Errorf("len(apNode.children): got:%d, want:2", len)
+		}
+
+		pleNode := apNode.children[0]
+		ricotNode := apNode.children[1]
+
+		if !bytes.Equal(pleNode.key, []byte("ple")) {
+			t.Errorf("got:%q, want:%q", pleNode.key, "ple")
+		}
+
+		if !bytes.Equal(ricotNode.key, []byte("ricot")) {
+			t.Errorf("got:%q, want:%q", ricotNode.key, "ricot")
+		}
+
+		if !pleNode.isRecord {
+			t.Errorf("pleRecord.isRecord: got:%t, want:%t", pleNode.isRecord, true)
+		}
+
+		if !ricotNode.isRecord {
+			t.Errorf("ricotNode.isRecord: got:%t, want:%t", ricotNode.isRecord, true)
+		}
+	} else {
+		t.Errorf("got:%q, want:%q", apNode.key, "ap")
+	}
+
+	if bytes.Equal(baNode.key, []byte("ba")) {
+		if baNode.isRecord {
+			t.Errorf("node.isRecord: got:%t, want:%t", baNode.isRecord, false)
+		}
+
+		if len := len(baNode.children); len != 2 {
+			t.Errorf("len(baNode.children): got:%d, want:2", len)
+		}
+	} else {
+		t.Errorf("got:%q, want:%q", baNode.key, "ba")
+	}
+
 	// Mild fuzzing: Insert random keys for memory errors.
 	numRandomInserts := 3000
 	numRecordsBefore := rdb.Len()

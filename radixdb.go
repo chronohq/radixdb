@@ -22,6 +22,7 @@ var (
 type node struct {
 	key      []byte  // Path segment of the node.
 	value    any     // Data associated with this node, if any.
+	isRecord bool    // True if node is a record; false if path component.
 	children []*node // Pointers to child nodes.
 }
 
@@ -65,6 +66,7 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 	newNode := &node{
 		key:      key,
 		value:    value,
+		isRecord: true,
 		children: []*node{},
 	}
 
