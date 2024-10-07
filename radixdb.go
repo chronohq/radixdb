@@ -84,9 +84,17 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 	for {
 		prefix := longestCommonPrefix(current.key, key)
 
-		// Exact match: Duplicate insertion is disallowed.
+		// Exact match found on the node key. If the current node is marked as
+		// a record, enforce the no-duplicate key constraint. Otherwise assign
+		// the current node with the given value, and mark it as a record.
 		if len(prefix) == len(current.key) && len(prefix) == len(newNode.key) {
-			return ErrDuplicateKey
+			if current.isRecord {
+				return ErrDuplicateKey
+			} else {
+				current.value = value
+				current.isRecord = true
+				return nil
+			}
 		}
 
 		// newNode's key matches the longest common prefix and is shorter than

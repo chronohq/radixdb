@@ -179,13 +179,23 @@ func TestInsert(t *testing.T) {
 		t.Errorf("Len(): got:%d, want:5", len)
 	}
 
-	// Expected tree structure:
+	// Test insertion on path component node (e.g. split/intermediate node).
+	if err := rdb.Insert([]byte("ba"), []byte("flights")); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	// Second insertion must fail.
+	if err := rdb.Insert([]byte("ba"), []byte("flights")); err == nil {
+		t.Errorf("expected error: got:%v, want:%v", err, ErrDuplicateKey)
+	}
+
+	// Expected tree structure at this point:
 	// .
 	// ├─ ap ("<nil>")
 	// │  ├─ ple ("juice")
 	// │  │  └─ t ("app")
 	// │  └─ ricot ("farm")
-	// └─ ba ("<nil>")
+	// └─ ba ("flights")
 	//   ├─ nana ("smoothie")
 	//   └─ king ("show")
 
@@ -229,8 +239,8 @@ func TestInsert(t *testing.T) {
 	}
 
 	if bytes.Equal(baNode.key, []byte("ba")) {
-		if baNode.isRecord {
-			t.Errorf("node.isRecord: got:%t, want:%t", baNode.isRecord, false)
+		if !baNode.isRecord {
+			t.Errorf("node.isRecord: got:%t, want:%t", baNode.isRecord, true)
 		}
 
 		if len := len(baNode.children); len != 2 {
@@ -241,7 +251,7 @@ func TestInsert(t *testing.T) {
 	}
 
 	// Mild fuzzing: Insert random keys for memory errors.
-	numRandomInserts := 3000
+	numRandomInserts := 5000
 	numRecordsBefore := rdb.Len()
 	numRecordsExpected := uint64(numRandomInserts + int(numRecordsBefore))
 
