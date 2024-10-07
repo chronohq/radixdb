@@ -21,7 +21,7 @@ var (
 // significant information, hence reducing the need to maintain metadata.
 type node struct {
 	key      []byte  // Path segment of the node.
-	value    any     // Data associated with this node, if any.
+	value    []byte  // Data associated with this node, if any.
 	isRecord bool    // True if node is a record; false if path component.
 	children []*node // Pointers to child nodes.
 }

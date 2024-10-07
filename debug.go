@@ -25,7 +25,7 @@ func printTree(node *node, prefix string, isLast bool, isRoot bool, treeSize uin
 
 	if isRoot {
 		if node.value != nil {
-			fmt.Printf("%s (%q)\n", string(node.key), node.value.(string))
+			fmt.Printf("%s (%q)\n", string(node.key), node.value)
 		} else {
 			fmt.Println(".")
 		}
@@ -33,7 +33,7 @@ func printTree(node *node, prefix string, isLast bool, isRoot bool, treeSize uin
 		var val string
 
 		if node.value != nil {
-			val = node.value.(string)
+			val = string(node.value)
 		} else {
 			val = "<nil>"
 		}

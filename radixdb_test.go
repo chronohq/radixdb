@@ -66,13 +66,13 @@ func TestSplitNode(t *testing.T) {
 	rdb := &RadixDB{
 		root: &node{
 			key:   []byte("apple"),
-			value: "juice",
+			value: []byte("juice"),
 		},
 	}
 
 	newNode := &node{
 		key:   []byte("appstore"),
-		value: "registry",
+		value: []byte("registry"),
 	}
 
 	// Test root split.
@@ -95,7 +95,7 @@ func TestSplitNode(t *testing.T) {
 	// Test non-root split: newNode(app[store]) is the parent.
 	strawberryNode := &node{
 		key:   []byte("strawberry"),
-		value: "jam",
+		value: []byte("jam"),
 	}
 
 	commonPrefix = longestCommonPrefix(newNode.key, strawberryNode.key)
