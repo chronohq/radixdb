@@ -119,158 +119,146 @@ func TestSplitNode(t *testing.T) {
 	}
 }
 
-// TODO(toru): Reorganize the tests once all the basic cases are defined.
-// In the meantime, keep adding test cases to catch regressions.
 func TestInsert(t *testing.T) {
 	rdb := &RadixDB{}
 
-	// Test nil key insertion.
-	if err := rdb.Insert(nil, []byte("nil-key")); err != ErrNilKey {
-		t.Errorf("expected error: got:nil, want:%v", ErrNilKey)
-	}
+	// Test the tree structure using keys of varying length and common prefix.
+	//
+	// Expected tree structure:
+	//
+	// a ("team")
+	// └─ p ("nic")
+	//    ├─ p ("store")
+	//    │  ├─ l ("<nil>")
+	//    │  │  ├─ e ("sauce")
+	//    │  │  ├─ y ("force")
+	//    │  │  └─ i ("<nil>")
+	//    │  │     ├─ cation ("framework")
+	//    │  │     └─ ance ("shopping")
+	//    │  ├─ roved ("style")
+	//    │  └─ ointment ("time")
+	//    ├─ ex ("summit")
+	//    └─ ology ("accepted")
+	{
+		tests := []struct {
+			key         []byte
+			value       []byte
+			expectedErr error
+		}{
+			{[]byte("a"), []byte("team"), nil},
+			{[]byte("app"), []byte("store"), nil},
+			{[]byte("apple"), []byte("sauce"), nil},
+			{[]byte("approved"), []byte("style"), nil},
+			{[]byte("apply"), []byte("force"), nil},
+			{[]byte("apex"), []byte("summit"), nil},
+			{[]byte("application"), []byte("framework"), nil},
+			{[]byte("apology"), []byte("accepted"), nil},
+			{[]byte("appointment"), []byte("time"), nil},
+			{[]byte("appliance"), []byte("shopping"), nil},
+			{[]byte("ap"), []byte("nic"), nil},
 
-	// Test duplicate key insertion.
-	if err := rdb.Insert([]byte("apple"), []byte("juice")); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if err := rdb.Insert([]byte("apple"), []byte("cider")); err != ErrDuplicateKey {
-		t.Errorf("expected error: got:nil, want:%v", ErrDuplicateKey)
-	}
-
-	if len := rdb.Len(); len != 1 {
-		t.Errorf("Len(): got:%d, want:1", len)
-	}
-
-	// Test non-common key insertion. The node should be a direct child of root.
-	if err := rdb.Insert([]byte("banana"), []byte("smoothie")); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
-	var found bool
-	for _, node := range rdb.root.children {
-		if bytes.Equal(node.key, []byte("banana")) {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		t.Error("banana expected to be a child of root")
-	}
-
-	if len := rdb.Len(); len != 2 {
-		t.Errorf("Len(): got:%d, want:2", len)
-	}
-
-	// Test common prefix insertion.
-	if err := rdb.Insert([]byte("applet"), []byte("app")); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
-	if err := rdb.Insert([]byte("apricot"), []byte("farm")); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
-	if err := rdb.Insert([]byte("baking"), []byte("show")); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
-	if len := rdb.Len(); len != 5 {
-		t.Errorf("Len(): got:%d, want:5", len)
-	}
-
-	// Test insertion on path component node (e.g. split/intermediate node).
-	if err := rdb.Insert([]byte("ba"), []byte("flights")); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
-	// Second insertion must fail.
-	if err := rdb.Insert([]byte("ba"), []byte("flights")); err == nil {
-		t.Errorf("expected error: got:%v, want:%v", err, ErrDuplicateKey)
-	}
-
-	// Expected tree structure at this point:
-	// .
-	// ├─ ap ("<nil>")
-	// │  ├─ ple ("juice")
-	// │  │  └─ t ("app")
-	// │  └─ ricot ("farm")
-	// └─ ba ("flights")
-	//   ├─ nana ("smoothie")
-	//   └─ king ("show")
-
-	// Test path component node awareness.
-	if len := len(rdb.root.children); len != 2 {
-		t.Errorf("len(rdb.root.children): got:%d, want:2", len)
-	}
-
-	apNode := rdb.root.children[0]
-	baNode := rdb.root.children[1]
-
-	if bytes.Equal(apNode.key, []byte("ap")) {
-		if apNode.isRecord {
-			t.Errorf("node.isRecord: got:%t, want:%t", apNode.isRecord, false)
+			// Throw in some intentional insertion errors.
+			{nil, []byte("boo"), ErrNilKey},
+			{[]byte("ap"), []byte("news"), ErrDuplicateKey},
+			{[]byte("apple"), []byte("cider"), ErrDuplicateKey},
 		}
 
-		if len := len(apNode.children); len != 2 {
-			t.Errorf("len(apNode.children): got:%d, want:2", len)
+		for _, test := range tests {
+			if err := rdb.Insert(test.key, test.value); err != test.expectedErr {
+				t.Errorf("rdb.Insert: got:%v, want:%v", err, test.expectedErr)
+			}
 		}
 
-		pleNode := apNode.children[0]
-		ricotNode := apNode.children[1]
-
-		if !bytes.Equal(pleNode.key, []byte("ple")) {
-			t.Errorf("got:%q, want:%q", pleNode.key, "ple")
+		if !bytes.Equal(rdb.root.key, []byte("a")) {
+			t.Errorf("rdb.root.key: got:%q, want:%q", rdb.root.key, "a")
 		}
 
-		if !bytes.Equal(ricotNode.key, []byte("ricot")) {
-			t.Errorf("got:%q, want:%q", ricotNode.key, "ricot")
+		// Root must only have one children: "p".
+		if len := len(rdb.root.children); len != 1 {
+			t.Errorf("len(rdb.root.children): got:%d, want:3", len)
 		}
 
-		if !pleNode.isRecord {
-			t.Errorf("pleRecord.isRecord: got:%t, want:%t", pleNode.isRecord, true)
+		// "a->p" node must only have three children: "p", "ex", "ology",
+		apNode := rdb.root.children[0]
+		{
+			if !bytes.Equal(apNode.key, []byte("p")) {
+				t.Errorf("apNode.key: got:%q, want:%q", apNode.key, "p")
+			}
+
+			if len := len(apNode.children); len != 3 {
+				t.Errorf("len(apNode.children): got:%d, want:3", len)
+			}
+
+			for i, expectedKey := range [][]byte{[]byte("p"), []byte("ex"), []byte("ology")} {
+				if !bytes.Equal(apNode.children[i].key, expectedKey) {
+					t.Errorf("unexpected key: got:%q, want:%q", apNode.children[i].key, expectedKey)
+				}
+			}
+
+			// "a->p" node _was_ a non-record row, but it became one when
+			// "ap/nic" pair was inserted into the tree.
+			if !apNode.isRecord {
+				t.Errorf("apNode.isRecord: got:%t, want:true", apNode.isRecord)
+			}
 		}
 
-		if !ricotNode.isRecord {
-			t.Errorf("ricotNode.isRecord: got:%t, want:%t", ricotNode.isRecord, true)
-		}
-	} else {
-		t.Errorf("got:%q, want:%q", apNode.key, "ap")
-	}
+		// "a->p->p" node must only have three children: "l", "roved", "ointment".
+		appNode := apNode.children[0]
+		{
+			if !bytes.Equal(appNode.key, []byte("p")) {
+				t.Errorf("appNode.key: got:%q, want:%q", appNode.key, "p")
+			}
 
-	if bytes.Equal(baNode.key, []byte("ba")) {
-		if !baNode.isRecord {
-			t.Errorf("node.isRecord: got:%t, want:%t", baNode.isRecord, true)
+			if len := len(appNode.children); len != 3 {
+				t.Errorf("len(appNode.children): got:%d, want:3", len)
+			}
+
+			for i, expectedKey := range [][]byte{[]byte("l"), []byte("roved"), []byte("ointment")} {
+				if !bytes.Equal(appNode.children[i].key, expectedKey) {
+					t.Errorf("unexpected key: got:%q, want:%q", appNode.children[i].key, expectedKey)
+				}
+			}
+
+			// "a->p->p->l" node was produced during node split.
+			{
+				applNode := appNode.children[0]
+
+				if !bytes.Equal(applNode.key, []byte("l")) {
+					t.Errorf("applNode.key: got:%q, want:%q", applNode.key, "l")
+				}
+
+				if applNode.isRecord {
+					t.Errorf("applNode.isRecord: got:%t, want:false", applNode.isRecord)
+				}
+			}
 		}
 
-		if len := len(baNode.children); len != 2 {
-			t.Errorf("len(baNode.children): got:%d, want:2", len)
-		}
-	} else {
-		t.Errorf("got:%q, want:%q", baNode.key, "ba")
+		rdb.clear()
 	}
 
 	// Mild fuzzing: Insert random keys for memory errors.
-	numRandomInserts := 80000
-	numRecordsBefore := rdb.Len()
-	numRecordsExpected := uint64(numRandomInserts + int(numRecordsBefore))
+	{
+		numRandomInserts := 100000
+		numRecordsBefore := rdb.Len()
+		numRecordsExpected := uint64(numRandomInserts + int(numRecordsBefore))
 
-	for i := 0; i < numRandomInserts; i++ {
-		// Random key length between 4 and 128 bytes.
-		keyLength := mrand.IntN(128-4) + 4
-		randomKey := make([]byte, keyLength)
+		for i := 0; i < numRandomInserts; i++ {
+			// Random key length between 4 and 128 bytes.
+			keyLength := mrand.IntN(128-4) + 4
+			randomKey := make([]byte, keyLength)
 
-		if _, err := rand.Read(randomKey); err != nil {
-			t.Fatal(err)
+			if _, err := rand.Read(randomKey); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := rdb.Insert(randomKey, randomKey); err != nil {
+				t.Fatalf("%v: %v", randomKey, err)
+			}
 		}
 
-		if err := rdb.Insert(randomKey, randomKey); err != nil {
-			t.Fatalf("%v: %v", randomKey, err)
+		if len := rdb.Len(); len != numRecordsExpected {
+			t.Errorf("Len(): got:%d, want:%d", len, numRecordsExpected)
 		}
-	}
-
-	if len := rdb.Len(); len != numRecordsExpected {
-		t.Errorf("Len(): got:%d, want:%d", len, numRecordsExpected)
 	}
 }
 
