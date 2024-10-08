@@ -326,6 +326,88 @@ func TestInsert(t *testing.T) {
 	}
 }
 
+func TestGet(t *testing.T) {
+	rdb := &RadixDB{}
+
+	// Expected tree structure:
+	// .
+	// ├─ grape ("vine")
+	// │  └─ fruit ("citrus")
+	// ├─ b ("<nil>")
+	// │  ├─ an ("<nil>")
+	// │  │  ├─ d ("practice")
+	// │  │  │  ├─ saw ("cut")
+	// │  │  │  └─ age ("medical")
+	// │  │  └─ ana ("ripe")
+	// │  ├─ lueberry ("fruit")
+	// │  └─ erry ("sweet")
+	// ├─ ap ("<nil>")
+	// │  ├─ pl ("<nil>")
+	// │  │  ├─ e ("cider")
+	// │  │  │  └─ t ("java")
+	// │  │  └─ ication ("framework")
+	// │  └─ ricot ("fruit")
+	// ├─ l ("<nil>")
+	// │  ├─ emon ("sour")
+	// │  └─ ime ("green")
+	// └─ orange ("juice")
+	{
+		var testCases = []struct {
+			key, value []byte
+		}{
+			{key: []byte("grape"), value: []byte("vine")},
+			{key: []byte("bandsaw"), value: []byte("cut")},
+			{key: []byte("applet"), value: []byte("java")},
+			{key: []byte("grapefruit"), value: []byte("citrus")},
+			{key: []byte("apple"), value: []byte("cider")},
+			{key: []byte("banana"), value: []byte("ripe")},
+			{key: []byte("apricot"), value: []byte("fruit")},
+			{key: []byte("bandage"), value: []byte("medical")},
+			{key: []byte("blueberry"), value: []byte("jam")},
+			{key: []byte("lemon"), value: []byte("sour")},
+			{key: []byte("berry"), value: []byte("sweet")},
+			{key: []byte("lime"), value: []byte("green")},
+			{key: []byte("application"), value: []byte("framework")},
+			{key: []byte("orange"), value: []byte("juice")},
+			{key: []byte("band"), value: []byte("practice")},
+		}
+
+		// Load the test cases.
+		for _, test := range testCases {
+			if err := rdb.Insert(test.key, test.value); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Replay the insertion. Every key/value pair must match.
+		for _, test := range testCases {
+			result, err := rdb.Get(test.key)
+
+			if err != nil {
+				t.Errorf("failed Get(): %v", err)
+			}
+
+			if !bytes.Equal(result, test.value) {
+				t.Errorf("unexpected value: got:%q, want:%q", result, test.value)
+			}
+		}
+
+		// Test path component nodes that do not hold records.
+		for _, key := range []string{"b", "ban", "ap", "appl", "l"} {
+			if _, err := rdb.Get([]byte(key)); err == nil {
+				t.Errorf("unexpected result: got:%v, want:%v", err, ErrKeyNotFound)
+			}
+		}
+
+		// Test keys that do not exist.
+		for _, key := range []string{"papaya", "pitaya", "durian"} {
+			if _, err := rdb.Get([]byte(key)); err == nil {
+				t.Errorf("unexpected result: got:%v, want:%v", err, ErrKeyNotFound)
+			}
+		}
+	}
+}
+
 func TestClear(t *testing.T) {
 	rdb := &RadixDB{}
 

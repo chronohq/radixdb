@@ -11,6 +11,9 @@ var (
 	// key that already exists in the database.
 	ErrDuplicateKey = errors.New("cannot insert duplicate key")
 
+	// ErrKeyNotFound is returned when the key does not exist in the tree.
+	ErrKeyNotFound = errors.New("key not found")
+
 	// ErrNilKey is returned when an insertion is attempted using a nil key.
 	ErrNilKey = errors.New("key cannot be nil")
 )
@@ -165,6 +168,61 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 		// we reach a leaf node or no further nodes are available.
 		parent = current
 		current = nextNode
+	}
+}
+
+func (rdb *RadixDB) Get(key []byte) ([]byte, error) {
+	if key == nil {
+		return nil, ErrNilKey
+	}
+
+	rdb.mu.RLock()
+	defer rdb.mu.RUnlock()
+
+	if rdb.empty() {
+		return nil, ErrKeyNotFound
+	}
+
+	current := rdb.root
+
+	for {
+		prefix := longestCommonPrefix(current.key, key)
+
+		// Lack of a common prefix means that the key does not exist in the
+		// tree, unless the current node is a root node.
+		if prefix == nil && current != rdb.root {
+			return nil, ErrKeyNotFound
+		}
+
+		// Prefix does not match the current node's key. Radix tree's prefix
+		// compression algorithm guarantees that the key does not exist.
+		if len(prefix) != len(current.key) {
+			return nil, ErrKeyNotFound
+		}
+
+		// The prefix matches the current node's key. The value can be returned
+		// if the current node is holding a record.
+		if len(prefix) == len(key) {
+			if current.isRecord {
+				return current.value, nil
+			} else {
+				return nil, ErrKeyNotFound
+			}
+		}
+
+		// Mild optimization to determine if further traversal is necessary.
+		if !current.hasChildren() {
+			return nil, ErrKeyNotFound
+		}
+
+		// Update the key for the next iteration, and then continue traversing.
+		// The key does not exist if a compatible child is not found.
+		key = key[len(prefix):]
+		current = current.findCompatibleChild(key)
+
+		if current == nil {
+			return nil, ErrKeyNotFound
+		}
 	}
 }
 

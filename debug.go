@@ -5,7 +5,7 @@ import (
 )
 
 // DebugPrint prints the RadixDB structure in a directory tree format.
-// Do not use this function for other than development and debugging.
+// This function is only for development and debugging purposes.
 func (rdb *RadixDB) DebugPrint() {
 	rdb.mu.RLock()
 	defer rdb.mu.RUnlock()
