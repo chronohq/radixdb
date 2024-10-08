@@ -200,6 +200,26 @@ func TestInsert(t *testing.T) {
 			if !apNode.isRecord {
 				t.Errorf("apNode.isRecord: got:%t, want:true", apNode.isRecord)
 			}
+
+			// "ex" and "ology" child nodes are leaf nodes.
+			apexNode := apNode.children[1]
+			apologyNode := apNode.children[2]
+
+			if !bytes.Equal(apexNode.key, []byte("ex")) {
+				t.Errorf("unexpected key: got:%q, want:%q", apexNode.key, "ex")
+			}
+
+			if !bytes.Equal(apologyNode.key, []byte("ology")) {
+				t.Errorf("unexpected key: got:%q, want:%q", apexNode.key, "ology")
+			}
+
+			if !apexNode.isLeaf() {
+				t.Errorf("isLeaf(ex): got:%t, want:true", apexNode.isLeaf())
+			}
+
+			if !apologyNode.isLeaf() {
+				t.Errorf("isLeaf(ology): got:%t, want:true", apologyNode.isLeaf())
+			}
 		}
 
 		// "a->p->p" node must only have three children: "l", "roved", "ointment".
@@ -218,17 +238,61 @@ func TestInsert(t *testing.T) {
 					t.Errorf("unexpected key: got:%q, want:%q", appNode.children[i].key, expectedKey)
 				}
 			}
+		}
 
-			// "a->p->p->l" node was produced during node split.
-			{
-				applNode := appNode.children[0]
+		// "a->p->p->l" node must only have three children: "e", "y", "i".
+		applNode := appNode.children[0]
+		{
+			if !bytes.Equal(applNode.key, []byte("l")) {
+				t.Errorf("applNode.key: got:%q, want:%q", applNode.key, "l")
+			}
 
-				if !bytes.Equal(applNode.key, []byte("l")) {
-					t.Errorf("applNode.key: got:%q, want:%q", applNode.key, "l")
+			// "a->p->p->l" node is a path component produced by split.
+			if applNode.isRecord {
+				t.Errorf("applNode.isRecord: got:%t, want:false", applNode.isRecord)
+			}
+
+			if len := len(applNode.children); len != 3 {
+				t.Errorf("len(applNode.children): got:%d, want:3", len)
+			}
+
+			for i, expectedKey := range [][]byte{[]byte("e"), []byte("y"), []byte("i")} {
+				if !bytes.Equal(applNode.children[i].key, expectedKey) {
+					t.Errorf("unexpected key: got:%q, want:%q", applNode.children[i].key, expectedKey)
+				}
+			}
+
+			// "e" and "y" are leaf nodes.
+			if !applNode.children[0].isLeaf() {
+				t.Errorf("isLeaf(e): got:%t, want:true", applNode.children[0].isLeaf())
+			}
+
+			if !applNode.children[1].isLeaf() {
+				t.Errorf("isLeaf(y): got:%t, want:0", applNode.children[1].isLeaf())
+			}
+		}
+
+		// "a->p->p->l->i" node must only have two children: "cation", "ance".
+		appliNode := applNode.children[2]
+		{
+			if len := len(appliNode.children); len != 2 {
+				t.Errorf("len(appliNode.children): got:%d, want:2", len)
+			}
+
+			// "a->p->p->l->i" node is a path component produced by split.
+			if appliNode.isRecord {
+				t.Errorf("applNode.isRecord: got:%t, want:false", appliNode.isRecord)
+			}
+
+			for i, expectedKey := range [][]byte{[]byte("cation"), []byte("ance")} {
+				if !bytes.Equal(appliNode.children[i].key, expectedKey) {
+					t.Errorf("unexpected key: got:%q, want:%q", appliNode.children[i].key, expectedKey)
 				}
 
-				if applNode.isRecord {
-					t.Errorf("applNode.isRecord: got:%t, want:false", applNode.isRecord)
+				// Every child: "cation" and "ance" are leaf nodes.
+				isLeaf := appliNode.children[i].isLeaf()
+				if !isLeaf {
+					t.Errorf("isLeaf(%q): got:%t, want:true", appliNode.children[i].key, isLeaf)
 				}
 			}
 		}

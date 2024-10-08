@@ -227,6 +227,11 @@ func (node node) findCompatibleChild(key []byte) *node {
 	return nil
 }
 
+// isLeaf returns true if the receiver node is a leaf node.
+func (node node) isLeaf() bool {
+	return len(node.children) == 0
+}
+
 // longestCommonPrefix compares the two given byte slices, and returns the
 // longest common prefix. It ensures memory-safety by establishing an index
 // boundary based on the length of the shorter byte slice.
