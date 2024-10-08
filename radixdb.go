@@ -93,6 +93,7 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 			} else {
 				current.value = value
 				current.isRecord = true
+				rdb.numNodes++
 				return nil
 			}
 		}
@@ -141,15 +142,16 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 				// with existing edges to child nodes.
 				if current.key == nil && len(current.children) > 0 {
 					current.children = append(current.children, newNode)
+				} else if len(current.key) == len(prefix) {
+					// Common prefix matches the current node's key.
+					// Therefore newNode is a child of the current node.
+					current.children = append(current.children, newNode)
 				} else {
 					rdb.root = &node{
 						key:      prefix,
 						children: []*node{current, newNode},
 					}
 				}
-
-				rdb.numNodes++
-				return nil
 			} else {
 				current.children = append(current.children, newNode)
 			}

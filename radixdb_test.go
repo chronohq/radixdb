@@ -119,6 +119,8 @@ func TestSplitNode(t *testing.T) {
 	}
 }
 
+// TODO(toru): Reorganize the tests once all the basic cases are defined.
+// In the meantime, keep adding test cases to catch regressions.
 func TestInsert(t *testing.T) {
 	rdb := &RadixDB{}
 
@@ -127,12 +129,10 @@ func TestInsert(t *testing.T) {
 		t.Errorf("expected error: got:nil, want:%v", ErrNilKey)
 	}
 
-	// Test standard insertion.
+	// Test duplicate key insertion.
 	if err := rdb.Insert([]byte("apple"), []byte("juice")); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-
-	// Test duplicate key insertion.
 	if err := rdb.Insert([]byte("apple"), []byte("cider")); err != ErrDuplicateKey {
 		t.Errorf("expected error: got:nil, want:%v", ErrDuplicateKey)
 	}
@@ -251,7 +251,7 @@ func TestInsert(t *testing.T) {
 	}
 
 	// Mild fuzzing: Insert random keys for memory errors.
-	numRandomInserts := 5000
+	numRandomInserts := 80000
 	numRecordsBefore := rdb.Len()
 	numRecordsExpected := uint64(numRandomInserts + int(numRecordsBefore))
 
