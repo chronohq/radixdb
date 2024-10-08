@@ -140,7 +140,7 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 			if current == rdb.root {
 				// A root node with nil key means that it's an intermediate node
 				// with existing edges to child nodes.
-				if current.key == nil && len(current.children) > 0 {
+				if current.key == nil && current.hasChildren() {
 					current.children = append(current.children, newNode)
 				} else if len(current.key) == len(prefix) {
 					// Common prefix matches the current node's key.
@@ -230,6 +230,11 @@ func (node node) findCompatibleChild(key []byte) *node {
 // isLeaf returns true if the receiver node is a leaf node.
 func (node node) isLeaf() bool {
 	return len(node.children) == 0
+}
+
+// hasChidren returns true if the receiver node has children.
+func (node node) hasChildren() bool {
+	return len(node.children) > 0
 }
 
 // longestCommonPrefix compares the two given byte slices, and returns the
