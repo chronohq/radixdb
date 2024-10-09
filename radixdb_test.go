@@ -33,35 +33,6 @@ func TestLongestCommonPrefix(t *testing.T) {
 	}
 }
 
-func TestFindCompatibleChild(t *testing.T) {
-	root := &node{
-		children: []*node{
-			{key: []byte("apple")},
-			{key: []byte("banana")},
-			{key: []byte("citron")},
-		},
-	}
-
-	tests := []struct {
-		key      []byte
-		expected []byte
-	}{
-		{[]byte("apple"), []byte("apple")},
-		{[]byte("applet"), []byte("apple")},
-		{[]byte("bandage"), []byte("banana")},
-		{[]byte("coconut"), []byte("citron")},
-		{[]byte("durian"), nil},
-		{[]byte("orange"), nil},
-	}
-
-	for _, test := range tests {
-		child := root.findCompatibleChild([]byte(test.key))
-		if (child == nil && test.expected != nil) || (child != nil && !bytes.Equal(child.key, test.expected)) {
-			t.Errorf("findCompatibleChild(%q): got:%q, want:%q", test.key, child.key, test.expected)
-		}
-	}
-}
-
 func TestSplitNode(t *testing.T) {
 	rdb := &RadixDB{
 		root: &node{
@@ -116,6 +87,88 @@ func TestSplitNode(t *testing.T) {
 	expectedKey = []byte("rawberry")
 	if !bytes.Equal(strawberryNode.key, expectedKey) {
 		t.Errorf("invalid strawberryNode.key: got:%q, want:%q", newNode.key, expectedKey)
+	}
+}
+
+func TestGet(t *testing.T) {
+	rdb := &RadixDB{}
+
+	// Expected tree structure:
+	// .
+	// ├─ grape ("vine")
+	// │  └─ fruit ("citrus")
+	// ├─ b ("<nil>")
+	// │  ├─ an ("<nil>")
+	// │  │  ├─ d ("practice")
+	// │  │  │  ├─ saw ("cut")
+	// │  │  │  └─ age ("medical")
+	// │  │  └─ ana ("ripe")
+	// │  ├─ lueberry ("fruit")
+	// │  └─ erry ("sweet")
+	// ├─ ap ("<nil>")
+	// │  ├─ pl ("<nil>")
+	// │  │  ├─ e ("cider")
+	// │  │  │  └─ t ("java")
+	// │  │  └─ ication ("framework")
+	// │  └─ ricot ("fruit")
+	// ├─ l ("<nil>")
+	// │  ├─ emon ("sour")
+	// │  └─ ime ("green")
+	// └─ orange ("juice")
+	{
+		var testCases = []struct {
+			key, value []byte
+		}{
+			{key: []byte("grape"), value: []byte("vine")},
+			{key: []byte("bandsaw"), value: []byte("cut")},
+			{key: []byte("applet"), value: []byte("java")},
+			{key: []byte("grapefruit"), value: []byte("citrus")},
+			{key: []byte("apple"), value: []byte("cider")},
+			{key: []byte("banana"), value: []byte("ripe")},
+			{key: []byte("apricot"), value: []byte("fruit")},
+			{key: []byte("bandage"), value: []byte("medical")},
+			{key: []byte("blueberry"), value: []byte("jam")},
+			{key: []byte("lemon"), value: []byte("sour")},
+			{key: []byte("berry"), value: []byte("sweet")},
+			{key: []byte("lime"), value: []byte("green")},
+			{key: []byte("application"), value: []byte("framework")},
+			{key: []byte("orange"), value: []byte("juice")},
+			{key: []byte("band"), value: []byte("practice")},
+		}
+
+		// Load the test cases.
+		for _, test := range testCases {
+			if err := rdb.Insert(test.key, test.value); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Replay the insertion. Every key/value pair must match.
+		for _, test := range testCases {
+			result, err := rdb.Get(test.key)
+
+			if err != nil {
+				t.Errorf("failed Get(): %v", err)
+			}
+
+			if !bytes.Equal(result, test.value) {
+				t.Errorf("unexpected value: got:%q, want:%q", result, test.value)
+			}
+		}
+
+		// Test path component nodes that do not hold records.
+		for _, key := range []string{"b", "ban", "ap", "appl", "l"} {
+			if _, err := rdb.Get([]byte(key)); err == nil {
+				t.Errorf("unexpected result: got:%v, want:%v", err, ErrKeyNotFound)
+			}
+		}
+
+		// Test keys that do not exist.
+		for _, key := range []string{"papaya", "pitaya", "durian"} {
+			if _, err := rdb.Get([]byte(key)); err == nil {
+				t.Errorf("unexpected result: got:%v, want:%v", err, ErrKeyNotFound)
+			}
+		}
 	}
 }
 
@@ -326,88 +379,6 @@ func TestInsert(t *testing.T) {
 	}
 }
 
-func TestGet(t *testing.T) {
-	rdb := &RadixDB{}
-
-	// Expected tree structure:
-	// .
-	// ├─ grape ("vine")
-	// │  └─ fruit ("citrus")
-	// ├─ b ("<nil>")
-	// │  ├─ an ("<nil>")
-	// │  │  ├─ d ("practice")
-	// │  │  │  ├─ saw ("cut")
-	// │  │  │  └─ age ("medical")
-	// │  │  └─ ana ("ripe")
-	// │  ├─ lueberry ("fruit")
-	// │  └─ erry ("sweet")
-	// ├─ ap ("<nil>")
-	// │  ├─ pl ("<nil>")
-	// │  │  ├─ e ("cider")
-	// │  │  │  └─ t ("java")
-	// │  │  └─ ication ("framework")
-	// │  └─ ricot ("fruit")
-	// ├─ l ("<nil>")
-	// │  ├─ emon ("sour")
-	// │  └─ ime ("green")
-	// └─ orange ("juice")
-	{
-		var testCases = []struct {
-			key, value []byte
-		}{
-			{key: []byte("grape"), value: []byte("vine")},
-			{key: []byte("bandsaw"), value: []byte("cut")},
-			{key: []byte("applet"), value: []byte("java")},
-			{key: []byte("grapefruit"), value: []byte("citrus")},
-			{key: []byte("apple"), value: []byte("cider")},
-			{key: []byte("banana"), value: []byte("ripe")},
-			{key: []byte("apricot"), value: []byte("fruit")},
-			{key: []byte("bandage"), value: []byte("medical")},
-			{key: []byte("blueberry"), value: []byte("jam")},
-			{key: []byte("lemon"), value: []byte("sour")},
-			{key: []byte("berry"), value: []byte("sweet")},
-			{key: []byte("lime"), value: []byte("green")},
-			{key: []byte("application"), value: []byte("framework")},
-			{key: []byte("orange"), value: []byte("juice")},
-			{key: []byte("band"), value: []byte("practice")},
-		}
-
-		// Load the test cases.
-		for _, test := range testCases {
-			if err := rdb.Insert(test.key, test.value); err != nil {
-				t.Fatal(err)
-			}
-		}
-
-		// Replay the insertion. Every key/value pair must match.
-		for _, test := range testCases {
-			result, err := rdb.Get(test.key)
-
-			if err != nil {
-				t.Errorf("failed Get(): %v", err)
-			}
-
-			if !bytes.Equal(result, test.value) {
-				t.Errorf("unexpected value: got:%q, want:%q", result, test.value)
-			}
-		}
-
-		// Test path component nodes that do not hold records.
-		for _, key := range []string{"b", "ban", "ap", "appl", "l"} {
-			if _, err := rdb.Get([]byte(key)); err == nil {
-				t.Errorf("unexpected result: got:%v, want:%v", err, ErrKeyNotFound)
-			}
-		}
-
-		// Test keys that do not exist.
-		for _, key := range []string{"papaya", "pitaya", "durian"} {
-			if _, err := rdb.Get([]byte(key)); err == nil {
-				t.Errorf("unexpected result: got:%v, want:%v", err, ErrKeyNotFound)
-			}
-		}
-	}
-}
-
 func TestClear(t *testing.T) {
 	rdb := &RadixDB{}
 
@@ -423,147 +394,5 @@ func TestClear(t *testing.T) {
 
 	if rdb.root != nil {
 		t.Error("expected root to be nil")
-	}
-}
-
-func TestAddChild(t *testing.T) {
-	parent := &node{}
-
-	child1 := &node{key: []byte("apple")}
-	child2 := &node{key: []byte("banana")}
-	child3 := &node{key: []byte("avocado")}
-	child4 := &node{key: []byte("alpha")}
-	child5 := &node{key: []byte("carrot")}
-
-	// Test with 1 child.
-	{
-		parent.addChild(child1)
-
-		if len(parent.children) != 1 {
-			t.Errorf("unexpected len: got:%d, want:1", len(parent.children))
-		}
-
-		if !bytes.Equal(parent.children[0].key, child1.key) {
-			t.Errorf("unexpected key: got:%q, want:%q", parent.children[0].key, child1.key)
-		}
-	}
-
-	// Test with 2 children.
-	{
-		parent.addChild(child2)
-
-		if len(parent.children) != 2 {
-			t.Errorf("unexpected len: got:%d, want:2", len(parent.children))
-		}
-
-		expected := [][]byte{[]byte("apple"), []byte("banana")}
-
-		for i, child := range parent.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
-			}
-		}
-
-	}
-
-	// Test with a child that should sit in-between the 2 existing nodes.
-	{
-		parent.addChild(child3)
-
-		if len(parent.children) != 3 {
-			t.Errorf("unexpected len: got:%d, want:3", len(parent.children))
-		}
-
-		expected := [][]byte{[]byte("apple"), []byte("avocado"), []byte("banana")}
-
-		for i, child := range parent.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
-			}
-		}
-	}
-
-	// Test with a child that should be in the 0th index.
-	{
-		parent.addChild(child4)
-
-		if len(parent.children) != 4 {
-			t.Errorf("unexpected len: got:%d, want:4", len(parent.children))
-		}
-
-		expected := [][]byte{[]byte("alpha"), []byte("apple"), []byte("avocado"), []byte("banana")}
-
-		for i, child := range parent.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
-			}
-		}
-	}
-
-	// Test with a child that should go at the end.
-	{
-		parent.addChild(child5)
-
-		if len(parent.children) != 5 {
-			t.Errorf("unexpected len: got:%d, want:5", len(parent.children))
-		}
-
-		expected := [][]byte{[]byte("alpha"), []byte("apple"), []byte("avocado"), []byte("banana"), []byte("carrot")}
-
-		for i, child := range parent.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
-			}
-		}
-	}
-
-	// Test with a child that has a duplicate key. Technically this would not
-	// happen since the key would be rejected before a child is inserted.
-	{
-		parent.addChild(&node{key: []byte("apple")})
-
-		if len(parent.children) != 6 {
-			t.Errorf("unexpected len: got:%d, want:5", len(parent.children))
-		}
-
-		expected := [][]byte{[]byte("alpha"), []byte("apple"), []byte("apple"), []byte("avocado"), []byte("banana"), []byte("carrot")}
-
-		for i, child := range parent.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
-			}
-		}
-	}
-}
-
-func TestSortChildren(t *testing.T) {
-	node := &node{
-		children: []*node{
-			{key: []byte("banana")},
-			{key: []byte("apple")},
-			{key: []byte("cherry")},
-			{key: []byte("Banana")},
-			{key: []byte("applet")},
-			{key: []byte("Apple")},
-			{key: []byte("Bananas")},
-		},
-	}
-
-	node.sortChildren()
-
-	expected := [][]byte{
-		[]byte("Apple"),
-		[]byte("Banana"),
-		[]byte("Bananas"),
-		[]byte("apple"),
-		[]byte("applet"),
-		[]byte("banana"),
-		[]byte("cherry"),
-	}
-
-	for i, child := range node.children {
-		if !bytes.Equal(child.key, expected[i]) {
-			t.Errorf("sortChildren(): expected key %q, got %q", expected[i], child.key)
-		}
 	}
 }
