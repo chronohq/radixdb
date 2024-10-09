@@ -173,6 +173,9 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 	}
 }
 
+// Get retrieves the value associated with the given key. It returns the value
+// as a byte slice along with any potential errors. For example, if the key does
+// not exist, ErrNotKeyFound is returned.
 func (rdb *RadixDB) Get(key []byte) ([]byte, error) {
 	if key == nil {
 		return nil, ErrNilKey
