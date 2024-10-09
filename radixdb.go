@@ -300,6 +300,25 @@ func (node node) hasChildren() bool {
 	return len(node.children) > 0
 }
 
+// addChild efficiently adds the given child to the node's children slice
+// while preserving lexicographic order based on the child's key.
+func (node *node) addChild(child *node) {
+	// Binary search for the correct position to insert the new child.
+	// This is faster than appending the child and then calling sort.Slice().
+	index := sort.Search(len(node.children), func(i int) bool {
+		return bytes.Compare(node.children[i].key, child.key) >= 0
+	})
+
+	// Expand the slice by one element, making room for the new child.
+	node.children = append(node.children, nil)
+
+	// Shift elements to the right to make space at the index.
+	copy(node.children[index+1:], node.children[index:])
+
+	// Insert the child in its correct position.
+	node.children[index] = child
+}
+
 // sortChildren sorts the node's children by their keys in lexicographical order.
 // The comparison is based on the byte-wise lexicographical order of the keys.
 func (node *node) sortChildren() {
