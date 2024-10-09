@@ -11,6 +11,18 @@ This allows easy read and write from any programming language, without special b
 🏗️ RadixDB is currently in active development. We plan to announce its readiness for
 general availability when appropriate. Stay tuned for updates.
 
+## Design Principles
+
+RadixDB is designed with a focus on portability and cross-platform,
+language-agnostic usage. When a developer constructs a Radix tree in their
+application, it's typically for a specific purpose. Therefore, the ability
+to persist the tree structure is valuable, as it allows applications to avoid
+rebuilding the tree on each restart. This is particularly beneficial when the
+tree's construction relies on external data sources that may not always be
+reliably available. RadixDB addresses this need by offering a straightforward
+mechanism to persist and reload Radix trees. Alternatively, RadixDB can be used
+exclusively for in-memory operations when persistence is not required.
+
 ## Concurrency Model
 
 The Go implementation of RadixDB employs a concurrency model based on the
