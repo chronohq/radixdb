@@ -425,3 +425,35 @@ func TestClear(t *testing.T) {
 		t.Error("expected root to be nil")
 	}
 }
+
+func TestSortChildren(t *testing.T) {
+	node := &node{
+		children: []*node{
+			{key: []byte("banana")},
+			{key: []byte("apple")},
+			{key: []byte("cherry")},
+			{key: []byte("Banana")},
+			{key: []byte("applet")},
+			{key: []byte("Apple")},
+			{key: []byte("Bananas")},
+		},
+	}
+
+	node.sortChildren()
+
+	expected := [][]byte{
+		[]byte("Apple"),
+		[]byte("Banana"),
+		[]byte("Bananas"),
+		[]byte("apple"),
+		[]byte("applet"),
+		[]byte("banana"),
+		[]byte("cherry"),
+	}
+
+	for i, child := range node.children {
+		if !bytes.Equal(child.key, expected[i]) {
+			t.Errorf("sortChildren(): expected key %q, got %q", expected[i], child.key)
+		}
+	}
+}

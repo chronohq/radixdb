@@ -2,7 +2,9 @@
 package radixdb
 
 import (
+	"bytes"
 	"errors"
+	"sort"
 	"sync"
 )
 
@@ -293,6 +295,14 @@ func (node node) isLeaf() bool {
 // hasChidren returns true if the receiver node has children.
 func (node node) hasChildren() bool {
 	return len(node.children) > 0
+}
+
+// sortChildren sorts the node's children by their keys in lexicographical order.
+// The comparison is based on the byte-wise lexicographical order of the keys.
+func (node *node) sortChildren() {
+	sort.Slice(node.children, func(i, j int) bool {
+		return bytes.Compare(node.children[i].key, node.children[j].key) < 0
+	})
 }
 
 // longestCommonPrefix compares the two given byte slices, and returns the
