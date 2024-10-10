@@ -60,6 +60,26 @@ func (node *node) addChild(child *node) {
 	node.children[index] = child
 }
 
+// removeChild removes a child from the node's (sorted) children slice. It does
+// so by identifying the index of the child using binary search.
+func (node *node) removeChild(key []byte) error {
+	index := sort.Search(len(node.children), func(i int) bool {
+		return bytes.Compare(node.children[i].key, key) >= 0
+	})
+
+	if index >= len(node.children) || longestCommonPrefix(node.children[index].key, key) == nil {
+		return ErrKeyNotFound
+	}
+
+	// Remove the child node at the index by shifting the elements after the
+	// index to the left. In other words, the shift overwrites the child node.
+	// We then truncate the slice by one element to remove the empty space.
+	copy(node.children[index:], node.children[index+1:])
+	node.children = node.children[:len(node.children)-1]
+
+	return nil
+}
+
 // sortChildren sorts the node's children by their keys in lexicographical order.
 // The comparison is based on the byte-wise lexicographical order of the keys.
 func (node *node) sortChildren() {

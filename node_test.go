@@ -175,3 +175,72 @@ func TestAddChild(t *testing.T) {
 		}
 	}
 }
+
+func TestRemoveChild(t *testing.T) {
+	subject := &node{}
+
+	subject.addChild(&node{key: []byte("banana")})
+	subject.addChild(&node{key: []byte("durian")})
+	subject.addChild(&node{key: []byte("apple")})
+	subject.addChild(&node{key: []byte("cherry")})
+
+	// Test removal of exising child.
+	{
+		if err := subject.removeChild([]byte("banana")); err != nil {
+			t.Errorf("unexpected error: got:%v, want:nil", err)
+		}
+
+		expected := [][]byte{[]byte("apple"), []byte("cherry"), []byte("durian")}
+
+		if len(subject.children) != len(expected) {
+			t.Errorf("unexpected child count: got:%d, want:%d", len(subject.children), len(expected))
+		}
+
+		for i, child := range subject.children {
+			if !bytes.Equal(child.key, expected[i]) {
+				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
+			}
+		}
+	}
+
+	// Test removal of a child that does not exist.
+	{
+		if err := subject.removeChild([]byte("orange")); err != ErrKeyNotFound {
+			t.Errorf("unexpected error: got:%v, want:%v", err, ErrKeyNotFound)
+		}
+	}
+
+	// Test removal until only one node remains.
+	{
+		if err := subject.removeChild([]byte("durian")); err != nil {
+			t.Errorf("unexpected error: got:%v, want:nil", err)
+		}
+
+		if err := subject.removeChild([]byte("apple")); err != nil {
+			t.Errorf("unexpected error: got:%v, want:nil", err)
+		}
+
+		expected := [][]byte{[]byte("cherry")}
+
+		if len(subject.children) != len(expected) {
+			t.Errorf("unexpected child count: got:%d, want:%d", len(subject.children), len(expected))
+		}
+
+		for i, child := range subject.children {
+			if !bytes.Equal(child.key, expected[i]) {
+				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
+			}
+		}
+	}
+
+	// Test removal of last child.
+	{
+		if err := subject.removeChild([]byte("cherry")); err != nil {
+			t.Errorf("unexpected error: got:%v, want:nil", err)
+		}
+
+		if len(subject.children) != 0 {
+			t.Errorf("unexpected child count: got:%d, want:0", len(subject.children))
+		}
+	}
+}
