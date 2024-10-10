@@ -184,12 +184,12 @@ func TestInsert(t *testing.T) {
 	//    ├─ p ("store")
 	//    │  ├─ l ("<nil>")
 	//    │  │  ├─ e ("sauce")
-	//    │  │  ├─ y ("force")
-	//    │  │  └─ i ("<nil>")
-	//    │  │     ├─ cation ("framework")
-	//    │  │     └─ ance ("shopping")
-	//    │  ├─ roved ("style")
-	//    │  └─ ointment ("time")
+	//    │  │  ├─ i ("<nil>")
+	//    │  │  │  ├─ cation ("framework")
+	//    │  │  │  └─ ance ("shopping")
+	//    │  │  └─ y ("job")
+	//    │  ├─ ointment ("time")
+	//    │  └─ roved ("style")
 	//    ├─ ex ("summit")
 	//    └─ ology ("accepted")
 	{
@@ -202,7 +202,7 @@ func TestInsert(t *testing.T) {
 			{[]byte("app"), []byte("store"), nil},
 			{[]byte("apple"), []byte("sauce"), nil},
 			{[]byte("approved"), []byte("style"), nil},
-			{[]byte("apply"), []byte("force"), nil},
+			{[]byte("apply"), []byte("job"), nil},
 			{[]byte("apex"), []byte("summit"), nil},
 			{[]byte("application"), []byte("framework"), nil},
 			{[]byte("apology"), []byte("accepted"), nil},
@@ -228,7 +228,7 @@ func TestInsert(t *testing.T) {
 
 		// Root must only have one children: "p".
 		if len := len(rdb.root.children); len != 1 {
-			t.Errorf("len(rdb.root.children): got:%d, want:3", len)
+			t.Errorf("len(rdb.root.children): got:%d, want:1", len)
 		}
 
 		// "a->p" node must only have three children: "p", "ex", "ology",
@@ -242,19 +242,19 @@ func TestInsert(t *testing.T) {
 				t.Errorf("len(apNode.children): got:%d, want:3", len)
 			}
 
-			for i, expectedKey := range [][]byte{[]byte("p"), []byte("ex"), []byte("ology")} {
-				if !bytes.Equal(apNode.children[i].key, expectedKey) {
-					t.Errorf("unexpected key: got:%q, want:%q", apNode.children[i].key, expectedKey)
+			for i, expected := range [][]byte{[]byte("p"), []byte("ex"), []byte("ology")} {
+				if !bytes.Equal(apNode.children[i].key, expected) {
+					t.Errorf("unexpected key: got:%q, want:%q", apNode.children[i].key, expected)
 				}
 			}
 
-			// "a->p" node _was_ a non-record row, but it became one when
-			// "ap/nic" pair was inserted into the tree.
+			// "a->p" node started off as a non-record node, but it became a
+			// data node when "ap/nic" pair was inserted into the tree.
 			if !apNode.isRecord {
 				t.Errorf("apNode.isRecord: got:%t, want:true", apNode.isRecord)
 			}
 
-			// "ex" and "ology" child nodes are leaf nodes.
+			// "a->p->ex" and "a->p->ology" child nodes are leaf nodes.
 			apexNode := apNode.children[1]
 			apologyNode := apNode.children[2]
 
@@ -275,7 +275,7 @@ func TestInsert(t *testing.T) {
 			}
 		}
 
-		// "a->p->p" node must only have three children: "l", "roved", "ointment".
+		// "a->p->p" node must only have three children: "l", "ointment", "roved".
 		appNode := apNode.children[0]
 		{
 			if !bytes.Equal(appNode.key, []byte("p")) {
@@ -286,30 +286,30 @@ func TestInsert(t *testing.T) {
 				t.Errorf("len(appNode.children): got:%d, want:3", len)
 			}
 
-			for i, expectedKey := range [][]byte{[]byte("l"), []byte("roved"), []byte("ointment")} {
+			for i, expectedKey := range [][]byte{[]byte("l"), []byte("ointment"), []byte("roved")} {
 				if !bytes.Equal(appNode.children[i].key, expectedKey) {
 					t.Errorf("unexpected key: got:%q, want:%q", appNode.children[i].key, expectedKey)
 				}
 			}
 		}
 
-		// "a->p->p->l" node must only have three children: "e", "y", "i".
+		// "a->p->p->l" node must only have three children: "e", "i", "y".
 		applNode := appNode.children[0]
 		{
 			if !bytes.Equal(applNode.key, []byte("l")) {
 				t.Errorf("applNode.key: got:%q, want:%q", applNode.key, "l")
 			}
 
-			// "a->p->p->l" node is a path component produced by split.
-			if applNode.isRecord {
-				t.Errorf("applNode.isRecord: got:%t, want:false", applNode.isRecord)
-			}
-
 			if len := len(applNode.children); len != 3 {
 				t.Errorf("len(applNode.children): got:%d, want:3", len)
 			}
 
-			for i, expectedKey := range [][]byte{[]byte("e"), []byte("y"), []byte("i")} {
+			// applNode is a path component produced by split.
+			if applNode.isRecord {
+				t.Errorf("applNode.isRecord: got:%t, want:false", applNode.isRecord)
+			}
+
+			for i, expectedKey := range [][]byte{[]byte("e"), []byte("i"), []byte("y")} {
 				if !bytes.Equal(applNode.children[i].key, expectedKey) {
 					t.Errorf("unexpected key: got:%q, want:%q", applNode.children[i].key, expectedKey)
 				}
@@ -320,14 +320,18 @@ func TestInsert(t *testing.T) {
 				t.Errorf("isLeaf(e): got:%t, want:true", applNode.children[0].isLeaf())
 			}
 
-			if !applNode.children[1].isLeaf() {
+			if !applNode.children[2].isLeaf() {
 				t.Errorf("isLeaf(y): got:%t, want:0", applNode.children[1].isLeaf())
 			}
 		}
 
 		// "a->p->p->l->i" node must only have two children: "cation", "ance".
-		appliNode := applNode.children[2]
+		appliNode := applNode.children[1]
 		{
+			if !bytes.Equal(appliNode.key, []byte("i")) {
+				t.Errorf("applNode.key: got:%q, want:%q", applNode.key, "l")
+			}
+
 			if len := len(appliNode.children); len != 2 {
 				t.Errorf("len(appliNode.children): got:%d, want:2", len)
 			}

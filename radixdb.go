@@ -98,7 +98,7 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 		// The common prefix is "app", and thus "app" becomes the parent of "le".
 		if len(prefix) == len(newNode.key) && len(prefix) < len(current.key) {
 			current.key = current.key[len(newNode.key):]
-			newNode.children = append(newNode.children, current)
+			newNode.addChild(current)
 
 			if parent == nil {
 				rdb.root = newNode
@@ -133,19 +133,18 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 				// A root node with nil key means that it's an intermediate node
 				// with existing edges to child nodes.
 				if current.key == nil && current.hasChildren() {
-					current.children = append(current.children, newNode)
+					current.addChild(newNode)
 				} else if len(current.key) == len(prefix) {
 					// Common prefix matches the current node's key.
 					// Therefore newNode is a child of the current node.
-					current.children = append(current.children, newNode)
+					current.addChild(newNode)
 				} else {
-					rdb.root = &node{
-						key:      prefix,
-						children: []*node{current, newNode},
-					}
+					rdb.root = &node{key: prefix}
+					rdb.root.addChild(current)
+					rdb.root.addChild(newNode)
 				}
 			} else {
-				current.children = append(current.children, newNode)
+				current.addChild(newNode)
 			}
 
 			rdb.numNodes++
