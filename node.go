@@ -93,11 +93,3 @@ func (n *node) removeChild(child *node) error {
 
 	return nil
 }
-
-// sortChildren sorts the node's children by their keys in lexicographical order.
-// The comparison is based on the byte-wise lexicographical order of the keys.
-func (n *node) sortChildren() {
-	sort.Slice(n.children, func(i, j int) bool {
-		return bytes.Compare(n.children[i].key, n.children[j].key) < 0
-	})
-}
