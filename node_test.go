@@ -179,14 +179,20 @@ func TestAddChild(t *testing.T) {
 func TestRemoveChild(t *testing.T) {
 	subject := &node{}
 
-	subject.addChild(&node{key: []byte("banana")})
-	subject.addChild(&node{key: []byte("durian")})
-	subject.addChild(&node{key: []byte("apple")})
-	subject.addChild(&node{key: []byte("cherry")})
+	appleNode := &node{key: []byte("apple")}
+	bananaNode := &node{key: []byte("banana")}
+	cherryNode := &node{key: []byte("cherry")}
+	durianNode := &node{key: []byte("durian")}
+	orangeNode := &node{key: []byte("orange")}
+
+	subject.addChild(bananaNode)
+	subject.addChild(durianNode)
+	subject.addChild(appleNode)
+	subject.addChild(cherryNode)
 
 	// Test removal of exising child.
 	{
-		if err := subject.removeChild([]byte("banana")); err != nil {
+		if err := subject.removeChild(bananaNode); err != nil {
 			t.Errorf("unexpected error: got:%v, want:nil", err)
 		}
 
@@ -205,18 +211,18 @@ func TestRemoveChild(t *testing.T) {
 
 	// Test removal of a child that does not exist.
 	{
-		if err := subject.removeChild([]byte("orange")); err != ErrKeyNotFound {
+		if err := subject.removeChild(orangeNode); err != ErrKeyNotFound {
 			t.Errorf("unexpected error: got:%v, want:%v", err, ErrKeyNotFound)
 		}
 	}
 
 	// Test removal until only one node remains.
 	{
-		if err := subject.removeChild([]byte("durian")); err != nil {
+		if err := subject.removeChild(durianNode); err != nil {
 			t.Errorf("unexpected error: got:%v, want:nil", err)
 		}
 
-		if err := subject.removeChild([]byte("apple")); err != nil {
+		if err := subject.removeChild(appleNode); err != nil {
 			t.Errorf("unexpected error: got:%v, want:nil", err)
 		}
 
@@ -235,7 +241,7 @@ func TestRemoveChild(t *testing.T) {
 
 	// Test removal of last child.
 	{
-		if err := subject.removeChild([]byte("cherry")); err != nil {
+		if err := subject.removeChild(cherryNode); err != nil {
 			t.Errorf("unexpected error: got:%v, want:nil", err)
 		}
 

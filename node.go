@@ -62,12 +62,12 @@ func (node *node) addChild(child *node) {
 
 // removeChild removes a child from the node's (sorted) children slice. It does
 // so by identifying the index of the child using binary search.
-func (node *node) removeChild(key []byte) error {
+func (node *node) removeChild(child *node) error {
 	index := sort.Search(len(node.children), func(i int) bool {
-		return bytes.Compare(node.children[i].key, key) >= 0
+		return bytes.Compare(node.children[i].key, child.key) >= 0
 	})
 
-	if index >= len(node.children) || longestCommonPrefix(node.children[index].key, key) == nil {
+	if index >= len(node.children) || longestCommonPrefix(node.children[index].key, child.key) == nil {
 		return ErrKeyNotFound
 	}
 
