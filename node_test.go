@@ -34,6 +34,45 @@ func TestFindCompatibleChild(t *testing.T) {
 	}
 }
 
+func TestFindChild(t *testing.T) {
+	subject := &node{}
+
+	subject.addChild(&node{key: []byte("durian")})
+	subject.addChild(&node{key: []byte("apple")})
+	subject.addChild(&node{key: []byte("cherry")})
+	subject.addChild(&node{key: []byte("banana")})
+
+	tests := []struct {
+		key           []byte
+		expectedIndex int
+		expectedErr   error
+	}{
+		{[]byte("apple"), 0, nil},
+		{[]byte("banana"), 1, nil},
+		{[]byte("cherry"), 2, nil},
+		{[]byte("durian"), 3, nil},
+		{[]byte("orange"), -1, ErrKeyNotFound},
+	}
+
+	for _, test := range tests {
+		child, index, err := subject.findChild(test.key)
+
+		if err != test.expectedErr {
+			t.Errorf("unexpected error: got:%v, want:%v", err, test.expectedErr)
+		}
+
+		if index != test.expectedIndex {
+			t.Errorf("unexpected index (%q): got:%d, want:%d", test.key, index, test.expectedIndex)
+		}
+
+		if test.expectedErr == nil {
+			if !bytes.Equal(child.key, test.key) {
+				t.Errorf("unexpected child: got:%q, want:%q", child.key, test.key)
+			}
+		}
+	}
+}
+
 func TestSortChildren(t *testing.T) {
 	node := &node{
 		children: []*node{

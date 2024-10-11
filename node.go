@@ -41,6 +41,20 @@ func (node node) findCompatibleChild(key []byte) *node {
 	return nil
 }
 
+// findChild returns the node's child that matches the given key.
+// If not found, an ErrKeyNotFound error is returned.
+func (node node) findChild(key []byte) (*node, int, error) {
+	index := sort.Search(len(node.children), func(i int) bool {
+		return bytes.Compare(node.children[i].key, key) >= 0
+	})
+
+	if index >= len(node.children) || longestCommonPrefix(node.children[index].key, key) == nil {
+		return nil, -1, ErrKeyNotFound
+	}
+
+	return node.children[index], index, nil
+}
+
 // addChild efficiently adds the given child to the node's children slice
 // while preserving lexicographic order based on the child's key.
 func (node *node) addChild(child *node) {
