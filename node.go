@@ -17,20 +17,20 @@ type node struct {
 }
 
 // hasChidren returns true if the receiver node has children.
-func (node node) hasChildren() bool {
-	return len(node.children) > 0
+func (n node) hasChildren() bool {
+	return len(n.children) > 0
 }
 
 // isLeaf returns true if the receiver node is a leaf node.
-func (node node) isLeaf() bool {
-	return len(node.children) == 0
+func (n node) isLeaf() bool {
+	return len(n.children) == 0
 }
 
 // findCompatibleChild searches through the child nodes of the receiver node.
 // It returns the first child node that shares a common prefix. If no child is
 // found, the function returns nil.
-func (node node) findCompatibleChild(key []byte) *node {
-	for _, child := range node.children {
+func (n node) findCompatibleChild(key []byte) *node {
+	for _, child := range n.children {
 		prefix := longestCommonPrefix(child.key, key)
 
 		if len(prefix) > 0 {
@@ -43,61 +43,61 @@ func (node node) findCompatibleChild(key []byte) *node {
 
 // findChild returns the node's child that matches the given key.
 // If not found, an ErrKeyNotFound error is returned.
-func (node node) findChild(key []byte) (*node, int, error) {
-	index := sort.Search(len(node.children), func(i int) bool {
-		return bytes.Compare(node.children[i].key, key) >= 0
+func (n node) findChild(key []byte) (*node, int, error) {
+	index := sort.Search(len(n.children), func(i int) bool {
+		return bytes.Compare(n.children[i].key, key) >= 0
 	})
 
-	if index >= len(node.children) || longestCommonPrefix(node.children[index].key, key) == nil {
+	if index >= len(n.children) || longestCommonPrefix(n.children[index].key, key) == nil {
 		return nil, -1, ErrKeyNotFound
 	}
 
-	return node.children[index], index, nil
+	return n.children[index], index, nil
 }
 
 // addChild efficiently adds the given child to the node's children slice
 // while preserving lexicographic order based on the child's key.
-func (node *node) addChild(child *node) {
+func (n *node) addChild(child *node) {
 	// Binary search for the correct position to insert the new child.
 	// This is faster than appending the child and then calling sort.Slice().
-	index := sort.Search(len(node.children), func(i int) bool {
-		return bytes.Compare(node.children[i].key, child.key) >= 0
+	index := sort.Search(len(n.children), func(i int) bool {
+		return bytes.Compare(n.children[i].key, child.key) >= 0
 	})
 
 	// Expand the slice by one element, making room for the new child.
-	node.children = append(node.children, nil)
+	n.children = append(n.children, nil)
 
 	// Shift elements to the right to make space at the index.
-	copy(node.children[index+1:], node.children[index:])
+	copy(n.children[index+1:], n.children[index:])
 
 	// Insert the child in its correct position.
-	node.children[index] = child
+	n.children[index] = child
 }
 
 // removeChild removes a child from the node's (sorted) children slice. It does
 // so by identifying the index of the child using binary search.
-func (node *node) removeChild(child *node) error {
-	index := sort.Search(len(node.children), func(i int) bool {
-		return bytes.Compare(node.children[i].key, child.key) >= 0
+func (n *node) removeChild(child *node) error {
+	index := sort.Search(len(n.children), func(i int) bool {
+		return bytes.Compare(n.children[i].key, child.key) >= 0
 	})
 
-	if index >= len(node.children) || longestCommonPrefix(node.children[index].key, child.key) == nil {
+	if index >= len(n.children) || longestCommonPrefix(n.children[index].key, child.key) == nil {
 		return ErrKeyNotFound
 	}
 
 	// Remove the child node at the index by shifting the elements after the
 	// index to the left. In other words, the shift overwrites the child node.
 	// We then truncate the slice by one element to remove the empty space.
-	copy(node.children[index:], node.children[index+1:])
-	node.children = node.children[:len(node.children)-1]
+	copy(n.children[index:], n.children[index+1:])
+	n.children = n.children[:len(n.children)-1]
 
 	return nil
 }
 
 // sortChildren sorts the node's children by their keys in lexicographical order.
 // The comparison is based on the byte-wise lexicographical order of the keys.
-func (node *node) sortChildren() {
-	sort.Slice(node.children, func(i, j int) bool {
-		return bytes.Compare(node.children[i].key, node.children[j].key) < 0
+func (n *node) sortChildren() {
+	sort.Slice(n.children, func(i, j int) bool {
+		return bytes.Compare(n.children[i].key, n.children[j].key) < 0
 	})
 }
