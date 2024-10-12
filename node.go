@@ -93,3 +93,17 @@ func (n *node) removeChild(child *node) error {
 
 	return nil
 }
+
+// prependKey prepends the given prefix to the node's existing key.
+func (n *node) prependKey(prefix []byte) {
+	if len(prefix) == 0 {
+		return
+	}
+
+	newKey := make([]byte, len(prefix)+len(n.key))
+
+	copy(newKey, prefix)
+	copy(newKey[len(prefix):], n.key)
+
+	n.key = newKey
+}
