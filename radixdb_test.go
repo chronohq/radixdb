@@ -181,17 +181,17 @@ func TestInsert(t *testing.T) {
 	//
 	// a ("team")
 	// └─ p ("nic")
-	//    ├─ p ("store")
-	//    │  ├─ l ("<nil>")
-	//    │  │  ├─ e ("sauce")
-	//    │  │  ├─ i ("<nil>")
-	//    │  │  │  ├─ cation ("framework")
-	//    │  │  │  └─ ance ("shopping")
-	//    │  │  └─ y ("job")
-	//    │  ├─ ointment ("time")
-	//    │  └─ roved ("style")
 	//    ├─ ex ("summit")
-	//    └─ ology ("accepted")
+	//    ├─ ology ("accepted")
+	//    └─ p ("store")
+	//       ├─ l ("<nil>")
+	//       │  ├─ e ("sauce")
+	//       │  ├─ i ("<nil>")
+	//       │  │  ├─ ance ("shopping")
+	//       │  │  └─ cation ("framework")
+	//       │  └─ y ("job")
+	//       ├─ ointment ("time")
+	//       └─ roved ("style")
 	{
 		tests := []struct {
 			key         []byte
@@ -242,7 +242,7 @@ func TestInsert(t *testing.T) {
 				t.Errorf("len(apNode.children): got:%d, want:3", len)
 			}
 
-			for i, expected := range [][]byte{[]byte("p"), []byte("ex"), []byte("ology")} {
+			for i, expected := range [][]byte{[]byte("ex"), []byte("ology"), []byte("p")} {
 				if !bytes.Equal(apNode.children[i].key, expected) {
 					t.Errorf("unexpected key: got:%q, want:%q", apNode.children[i].key, expected)
 				}
@@ -255,8 +255,8 @@ func TestInsert(t *testing.T) {
 			}
 
 			// "a->p->ex" and "a->p->ology" child nodes are leaf nodes.
-			apexNode := apNode.children[1]
-			apologyNode := apNode.children[2]
+			apexNode := apNode.children[0]
+			apologyNode := apNode.children[1]
 
 			if !bytes.Equal(apexNode.key, []byte("ex")) {
 				t.Errorf("unexpected key: got:%q, want:%q", apexNode.key, "ex")
@@ -276,7 +276,7 @@ func TestInsert(t *testing.T) {
 		}
 
 		// "a->p->p" node must only have three children: "l", "ointment", "roved".
-		appNode := apNode.children[0]
+		appNode := apNode.children[2]
 		{
 			if !bytes.Equal(appNode.key, []byte("p")) {
 				t.Errorf("appNode.key: got:%q, want:%q", appNode.key, "p")
@@ -341,7 +341,7 @@ func TestInsert(t *testing.T) {
 				t.Errorf("applNode.isRecord: got:%t, want:false", appliNode.isRecord)
 			}
 
-			for i, expectedKey := range [][]byte{[]byte("cation"), []byte("ance")} {
+			for i, expectedKey := range [][]byte{[]byte("ance"), []byte("cation")} {
 				if !bytes.Equal(appliNode.children[i].key, expectedKey) {
 					t.Errorf("unexpected key: got:%q, want:%q", appliNode.children[i].key, expectedKey)
 				}

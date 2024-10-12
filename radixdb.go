@@ -239,10 +239,9 @@ func (rdb *RadixDB) splitNode(parent *node, current *node, newNode *node, common
 	current.key = current.key[len(commonPrefix):]
 	newNode.key = newNode.key[len(commonPrefix):]
 
-	newParent := &node{
-		key:      commonPrefix,
-		children: []*node{current, newNode},
-	}
+	newParent := &node{key: commonPrefix}
+	newParent.addChild(current)
+	newParent.addChild(newNode)
 
 	// Splitting the root node only requires setting the new branch as root.
 	if parent == nil && current == rdb.root {
