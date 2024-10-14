@@ -152,7 +152,7 @@ func TestGet(t *testing.T) {
 			}
 
 			if !bytes.Equal(result, test.value) {
-				t.Errorf("unexpected value: got:%q, want:%q", result, test.value)
+				t.Errorf("unexpected value (%q): got:%q, want:%q", test.key, result, test.value)
 			}
 		}
 
@@ -383,6 +383,326 @@ func TestInsert(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	// Basic cases.
+	{
+		rdb := basicTestTree()
+
+		tests := []struct {
+			key         []byte
+			expectedErr error
+		}{
+			{nil, ErrNilKey},
+			{[]byte("yyy"), ErrKeyNotFound},
+			{[]byte("zzz"), ErrKeyNotFound},
+
+			// Nodes that exist but are non-record nodes.
+			{[]byte("ap"), ErrKeyNotFound},
+			{[]byte("appl"), ErrKeyNotFound},
+			{[]byte("b"), ErrKeyNotFound},
+			{[]byte("ban"), ErrKeyNotFound},
+			{[]byte("l"), ErrKeyNotFound},
+
+			// Nodes that exist.
+			{[]byte("grape"), nil},
+			{[]byte("grapefruit"), nil},
+			{[]byte("orange"), nil},
+			{[]byte("lemonade"), nil},
+
+			// The "band" node technically exists after deletion because it
+			// becomes a node that splits "bandage" and "bandsaw". Therefore
+			// explicitly test that the second deletion fails.
+			{[]byte("band"), nil},
+			{[]byte("band"), ErrKeyNotFound},
+
+			// Removing "banana" from the following subtree must result in
+			// merged "b->an" and "b->an->d" nodes.
+			//
+			// ├─ b ("<nil>")
+			// │  ├─ an ("<nil>")
+			// │  │  ├─ ana ("ripe")
+			// │  │  └─ d ("<nil>")
+			// │  │    ├─ age ("medical")
+			// │  │    └─ saw ("cut")
+			// │  ├─ erry ("sweet")
+			// │  └─ lueberry ("jam")
+			//
+			// Expected subtree after deleting "banana":
+			//
+			// ├─ b ("<nil>")
+			// │  ├─ and ("<nil>")
+			// │  │  ├─ age ("medical")
+			// │  │  └─ saw ("cut")
+			// │  ├─ erry ("sweet")
+			// │  └─ lueberry ("jam")
+			{[]byte("banana"), nil},
+
+			// This is another tricky case. Deleting the "ime" node from the
+			// following subtree must convert the "stone" node to "imestone",
+			// because the "ime" node was compressing the path prefix.
+			//
+			// └─ l ("<nil>")
+			//   ├─ emon ("sour")
+			//   └─ ime ("green")
+			//     └─ stone ("concrete")
+			//
+			// Expected subtree after deleting "banana":
+			//
+			// └─ l ("<nil>")
+			//   ├─ emon ("sour")
+			//   └─ imestone ("concrete")
+			{[]byte("lime"), nil},
+
+			{[]byte("limestone"), nil},
+			{[]byte("lemon"), nil},
+
+			// Removing "berry" and "blueberry" from the following subtree must
+			// result in merged "b" and "b->and" nodes.
+			//
+			// └─ b ("<nil>")
+			//   ├─ and ("<nil>")
+			//   │  ├─ age ("first-aid")
+			//   │  └─ saw ("cut")
+			//   ├─ erry ("sweet")
+			//   └─ lueberry ("jam")
+			//
+			// Expected subtree after the deletions:
+			//
+			// └─ band ("<nil>")
+			//   ├─ age ("first-aid")
+			//   └─ saw ("cut")
+			{[]byte("berry"), nil},
+			{[]byte("blueberry"), nil},
+
+			{[]byte("bandage"), nil},
+			{[]byte("bandsaw"), nil},
+
+			// There should now only be one subtree ("ap" prefix), therefore
+			// the entire tree should be flat.
+			{[]byte("apricot"), nil},
+			{[]byte("apple"), nil},
+			{[]byte("application"), nil},
+			{[]byte("applet"), nil},
+		}
+
+		var err error
+		expectedTreeLen := rdb.Len()
+
+		for _, test := range tests {
+			if err = rdb.Delete(test.key); err != test.expectedErr {
+				t.Errorf("failed Delete(%q): got:%v, want:%v", test.key, err, test.expectedErr)
+			}
+
+			if err == nil {
+				expectedTreeLen--
+
+				if len := rdb.Len(); len != expectedTreeLen {
+					t.Errorf("unexpected tree size: got:%d, want:%d", len, expectedTreeLen)
+				}
+			}
+
+			// Spin-off test suite for a complicated auto parent converstion behavior.
+			if bytes.Equal(test.key, []byte("banana")) {
+				subTreeRoot := rdb.root.children[1]
+
+				if !bytes.Equal(subTreeRoot.key, []byte("b")) {
+					t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.key, []byte("b"))
+				}
+
+				expected := []struct {
+					key         []byte
+					numChildren int
+				}{
+					{[]byte("and"), 2},
+					{[]byte("erry"), 0},
+					{[]byte("lueberry"), 0},
+				}
+
+				for i, exp := range expected {
+					subject := subTreeRoot.children[i]
+
+					if !bytes.Equal(subject.key, exp.key) {
+						t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.children[i].key, exp.key)
+					}
+
+					if len := len(subject.children); len != exp.numChildren {
+						t.Errorf("unexpected child count: got:%d, want:%d", len, exp.numChildren)
+					}
+				}
+
+				subject := subTreeRoot.children[0]
+				keys := [][]byte{[]byte("age"), []byte("saw")}
+
+				for i, k := range keys {
+					if !bytes.Equal(subject.children[i].key, k) {
+						t.Errorf("unexpected key: got:%q, want:%q", subject.children[i].key, k)
+					}
+
+					if !subject.children[i].isLeaf() {
+						t.Errorf("expected leaf node: got:%t", subject.children[i].isLeaf())
+					}
+				}
+			}
+
+			if bytes.Equal(test.key, []byte("lime")) {
+				subTreeRoot := rdb.root.children[2]
+
+				if !bytes.Equal(subTreeRoot.key, []byte("l")) {
+					t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.key, []byte("l"))
+				}
+
+				if len := len(subTreeRoot.children); len != 2 {
+					t.Errorf("unexpected child count: got:%d, want:2", len)
+				}
+
+				expectations := [][]byte{[]byte("emon"), []byte("imestone")}
+
+				for i, expected := range expectations {
+					if !bytes.Equal(subTreeRoot.children[i].key, expected) {
+						t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.children[i].key, expected)
+					}
+
+					if !subTreeRoot.children[i].isLeaf() {
+						t.Errorf("expected (%q) to be a leaf node", subTreeRoot.children[i].key)
+					}
+				}
+			}
+
+			if bytes.Equal(test.key, []byte("blueberry")) {
+				subTreeRoot := rdb.root.children[1]
+
+				if !bytes.Equal(subTreeRoot.key, []byte("band")) {
+					t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.key, []byte("band"))
+				}
+
+				if len := len(subTreeRoot.children); len != 2 {
+					t.Errorf("unexpected child count: got:%d, want:2", len)
+				}
+
+				expectations := [][]byte{[]byte("age"), []byte("saw")}
+
+				for i, expected := range expectations {
+					if !bytes.Equal(subTreeRoot.children[i].key, expected) {
+						t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.children[i].key, expected)
+					}
+
+					if !subTreeRoot.children[i].isLeaf() {
+						t.Errorf("expected (%q) to be a leaf node", subTreeRoot.children[i].key)
+					}
+				}
+			}
+
+			// Expected tree structure at this point:
+			//
+			// appl ("<nil>")
+			//  ├─ et ("java")
+			//  └─ ication ("framework")
+			if bytes.Equal(test.key, []byte("apple")) {
+				if !bytes.Equal(rdb.root.key, []byte("appl")) {
+					t.Errorf("unexpected key: got:%q, want:%q", rdb.root.key, []byte("appl"))
+				}
+
+				if rdb.root.isRecord {
+					t.Errorf("unexpected isRecord, got:%t, want:false", rdb.root.isRecord)
+				}
+
+				if len := len(rdb.root.children); len != 2 {
+					t.Errorf("unexpected child count: got:%d, want:2", len)
+				}
+
+				left := rdb.root.children[0]
+				right := rdb.root.children[1]
+
+				if !bytes.Equal(left.key, []byte("et")) {
+					t.Errorf("unexpected key: got:%q, want:%q", left.key, []byte("et"))
+				}
+
+				if !bytes.Equal(right.key, []byte("ication")) {
+					t.Errorf("unexpected key: got:%q, want:%q", right.key, []byte("ication"))
+				}
+			}
+
+			// There is only one key left in the tree.
+			if bytes.Equal(test.key, []byte("application")) {
+				if !bytes.Equal(rdb.root.key, []byte("applet")) {
+					t.Errorf("unexpected key: got:%q, want:%q", rdb.root.key, []byte("applet"))
+				}
+
+				if len := len(rdb.root.children); len > 0 {
+					t.Errorf("unexpected child count: got:%d, want:0", len)
+				}
+
+				if len := rdb.Len(); len != 1 {
+					t.Errorf("unexpected tree size: got:%d, want:1", len)
+				}
+			}
+		}
+
+		// The tree must be empty at this point.
+		if len := rdb.Len(); len != 0 {
+			t.Errorf("unexpected tree size: got:%d, want:0", len)
+		}
+	}
+
+	// Test redundant parent node deletion. It is common for a parent node to
+	// become redundant after a node is deleted. In this case, we are targeting
+	// the "pl" node of the "ap" branch, which becomes redundant after deleting
+	// "apple" and "applet".
+	//
+	// ap ("<nil>")
+	// ├─ pl ("<nil>")
+	// │  ├─ e ("apple")
+	// │  │  └─ t ("applet")
+	// │  └─ ication ("application")
+	// └─ ricot ("apricot")
+	{
+		rdb := basicTestTree()
+		originalLen := rdb.Len()
+
+		// Expected branch structure after the deletion.
+		//
+		// .
+		// ├─ ap ("<nil>")
+		// │  ├─ plication ("framework")
+		// │  └─ ricot ("fruit")
+		rdb.Delete([]byte("apple"))
+		rdb.Delete([]byte("applet"))
+
+		subject := rdb.root.children[0]
+
+		if len := rdb.Len(); len != originalLen-2 {
+			t.Errorf("unexpected tree size: got:%d, want:2", len)
+		}
+
+		if !bytes.Equal(subject.key, []byte("ap")) {
+			t.Errorf("unexpected key: got:%q, want:%q", rdb.root.key, []byte("ap"))
+		}
+
+		if len := len(subject.children); len != 2 {
+			t.Errorf("unexpected child count: got:%d, want:2", len)
+		}
+
+		leftNode := subject.children[0]
+		rightNode := subject.children[1]
+
+		if !bytes.Equal(leftNode.key, []byte("plication")) {
+			t.Errorf("unexpected key: got:%q, want:%q", leftNode.key, []byte("plication"))
+		}
+
+		if !bytes.Equal(rightNode.key, []byte("ricot")) {
+			t.Errorf("unexpected key: got:%q, want:%q", rightNode.key, []byte("ricot"))
+		}
+
+		if !leftNode.isLeaf() {
+			t.Errorf("expected (%q) to be a leaf node", leftNode.key)
+		}
+
+		if !rightNode.isLeaf() {
+			t.Errorf("expected (%q) to be a leaf node", rightNode.key)
+		}
+	}
+}
+
 func TestClear(t *testing.T) {
 	rdb := &RadixDB{}
 
@@ -399,4 +719,52 @@ func TestClear(t *testing.T) {
 	if rdb.root != nil {
 		t.Error("expected root to be nil")
 	}
+}
+
+// Expected tree structure:
+// .
+// ├─ ap ("<nil>")
+// │  ├─ pl ("<nil>")
+// │  │  ├─ e ("cider")
+// │  │  │  └─ t ("java")
+// │  │  └─ ication ("framework")
+// │  └─ ricot ("fruit")
+// ├─ b ("<nil>")
+// │  ├─ an ("<nil>")
+// │  │  ├─ ana ("ripe")
+// │  │  └─ d ("practice")
+// │  │    ├─ age ("medical")
+// │  │    └─ saw ("cut")
+// │  ├─ erry ("sweet")
+// │  └─ lueberry ("jam")
+// ├─ grape ("vine")
+// │  └─ fruit ("citrus")
+// ├─ l ("<nil>")
+// │  ├─ emon ("sour")
+// │  │  └─ ade ("refreshing")
+// │  └─ ime ("green")
+// │    └─ stone ("concrete")
+// └─ orange ("juice")
+func basicTestTree() *RadixDB {
+	rdb := &RadixDB{}
+
+	rdb.Insert([]byte("grape"), []byte("vine"))
+	rdb.Insert([]byte("bandsaw"), []byte("cut"))
+	rdb.Insert([]byte("applet"), []byte("java"))
+	rdb.Insert([]byte("grapefruit"), []byte("citrus"))
+	rdb.Insert([]byte("apple"), []byte("cider"))
+	rdb.Insert([]byte("banana"), []byte("ripe"))
+	rdb.Insert([]byte("apricot"), []byte("fruit"))
+	rdb.Insert([]byte("bandage"), []byte("first-aid"))
+	rdb.Insert([]byte("blueberry"), []byte("jam"))
+	rdb.Insert([]byte("lemon"), []byte("sour"))
+	rdb.Insert([]byte("berry"), []byte("sweet"))
+	rdb.Insert([]byte("lime"), []byte("green"))
+	rdb.Insert([]byte("lemonade"), []byte("refreshing"))
+	rdb.Insert([]byte("application"), []byte("framework"))
+	rdb.Insert([]byte("limestone"), []byte("concrete"))
+	rdb.Insert([]byte("orange"), []byte("juice"))
+	rdb.Insert([]byte("band"), []byte("practice"))
+
+	return rdb
 }

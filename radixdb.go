@@ -183,6 +183,104 @@ func (rdb *RadixDB) Get(key []byte) ([]byte, error) {
 	return node.value, nil
 }
 
+func (rdb *RadixDB) Delete(key []byte) error {
+	if key == nil {
+		return ErrNilKey
+	}
+
+	rdb.mu.Lock()
+	defer rdb.mu.Unlock()
+
+	node, parent, err := rdb.findNodeAndParent(key)
+	if err != nil {
+		return err
+	}
+
+	if !node.isRecord {
+		return ErrKeyNotFound
+	}
+
+	// Determine how to remove the current node based on the number
+	// of children. If there are no children, simply remove the node
+	// from the parent. If the node is a root node then clear the tree.
+	if !node.hasChildren() {
+		if parent == nil && node == rdb.root {
+			rdb.clear()
+		} else {
+			if err := parent.removeChild(node); err != nil {
+				return err
+			}
+
+			rdb.numNodes--
+
+			// If the deletion had left the parent node with only one child,
+			// it means that the child can take its place in the tree.
+			if len(parent.children) == 1 {
+				onlyChild := parent.children[0]
+
+				// If the parent is the root node, we can simply promote
+				// the onlyChild node as the new root node.
+				if parent == rdb.root {
+					onlyChild.prependKey(parent.key)
+					rdb.root = onlyChild
+
+					return nil
+				}
+
+				// Reaching here means that we can replace the parent with the
+				// onlyChild. Because we don't have immediate access to the
+				// grandparent, instead of switching pointers, we will recycle
+				// the parent node by overwriting it.
+				//
+				// Taking place of the parent also means we need to be careful
+				// with the key. If the new parent either has children or is a
+				// record node, it needs to inherit the parent's key.
+				if onlyChild.hasChildren() || onlyChild.isRecord {
+					onlyChild.prependKey(parent.key)
+				}
+
+				parent.key = onlyChild.key
+				parent.value = onlyChild.value
+				parent.isRecord = onlyChild.isRecord
+				parent.children = onlyChild.children
+			}
+		}
+
+		return nil
+	}
+
+	// If the node only has one child, the child's key is reconstructed,
+	// and then it takes over the node's position in the tree.
+	if len(node.children) == 1 {
+		onlyChild := node.children[0]
+		onlyChild.prependKey(node.key)
+
+		if parent == nil && node == rdb.root {
+			rdb.root = onlyChild
+		} else {
+			_, index, err := parent.findChild(node.key)
+
+			if err != nil {
+				return err
+			}
+
+			parent.children[index] = onlyChild
+		}
+
+		rdb.numNodes--
+		return nil
+	}
+
+	// Reaching here means that the node has multiple children. Because the
+	// children are guaranteed to share the node's key as their prefix, we
+	// can simply convert the node to a path compression node.
+	node.isRecord = false
+	node.value = nil
+	rdb.numNodes--
+
+	return nil
+}
+
 // empty returns true if the tree is empty.
 func (rdb *RadixDB) empty() bool {
 	return rdb.root == nil && rdb.numNodes == 0
@@ -191,9 +289,6 @@ func (rdb *RadixDB) empty() bool {
 // clear wipes out the entire in-memory tree. This function is internal and
 // is not exported because it is intended for testing purposes.
 func (rdb *RadixDB) clear() {
-	rdb.mu.Lock()
-	defer rdb.mu.Unlock()
-
 	rdb.root = nil
 	rdb.numNodes = 0
 }
