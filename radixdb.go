@@ -176,6 +176,10 @@ func (rdb *RadixDB) Get(key []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	if !node.isRecord {
+		return nil, ErrKeyNotFound
+	}
+
 	return node.value, nil
 }
 
@@ -251,14 +255,9 @@ func (rdb *RadixDB) findNodeAndParent(key []byte) (*node, *node, error) {
 			return nil, nil, ErrKeyNotFound
 		}
 
-		// The prefix matches the current node's key. The value can be returned
-		// if the current node is holding a record.
+		// The prefix matches the current node's key.
 		if len(prefix) == len(key) {
-			if current.isRecord {
-				return current, parent, nil
-			} else {
-				return nil, nil, ErrKeyNotFound
-			}
+			return current, parent, nil
 		}
 
 		// Mild optimization to determine if further traversal is necessary.
