@@ -29,6 +29,13 @@ type RadixDB struct {
 	checksumEnabled bool         // True if checksum is enabled.
 }
 
+// New initializes and returns a new instance of RadixDB.
+func New() *RadixDB {
+	return &RadixDB{
+		checksumEnabled: true,
+	}
+}
+
 // Empty returns true if the tree is empty. This function is the exported
 // concurrency-safe version of empty().
 func (rdb *RadixDB) Empty() bool {

@@ -91,7 +91,7 @@ func TestSplitNode(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	rdb := &RadixDB{}
+	rdb := New()
 
 	// Expected tree structure:
 	// .
@@ -181,7 +181,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
-	rdb := &RadixDB{}
+	rdb := New()
 
 	// Test the tree structure using keys of varying length and common prefix.
 	//
@@ -375,7 +375,7 @@ func TestInsert(t *testing.T) {
 
 	// Mild fuzzing: Insert random keys for memory errors.
 	{
-		numRandomInserts := 100000
+		numRandomInserts := 150000
 		numRecordsBefore := rdb.Len()
 		numRecordsExpected := uint64(numRandomInserts + int(numRecordsBefore))
 
@@ -720,7 +720,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestClear(t *testing.T) {
-	rdb := &RadixDB{}
+	rdb := New()
 
 	rdb.Insert([]byte("k1"), []byte("v1"))
 	rdb.Insert([]byte("k2"), []byte("v2"))
@@ -762,7 +762,7 @@ func TestClear(t *testing.T) {
 // │    └─ stone ("concrete")
 // └─ orange ("juice")
 func basicTestTree() *RadixDB {
-	rdb := &RadixDB{}
+	rdb := New()
 
 	rdb.Insert([]byte("grape"), []byte("vine"))
 	rdb.Insert([]byte("bandsaw"), []byte("cut"))
