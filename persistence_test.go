@@ -8,7 +8,7 @@ func TestBuildFileHeader(t *testing.T) {
 
 	header := rdb.buildFileHeader()
 
-	expectedSize := binaryHeaderSize()
+	expectedSize := fileHeaderSize()
 
 	if len := len(header); len != expectedSize {
 		t.Errorf("unexpected header size, got:%d, want:%d", len, expectedSize)

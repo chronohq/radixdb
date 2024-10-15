@@ -14,16 +14,30 @@ const (
 	// It is used to ensure that the database file is compatible with the
 	// RadixDB software version.
 	fileFormatVersion = uint8(1)
+
+	// sizeOfUint8 is the size of uint8 in bytes.
+	sizeOfUint8 = 1
+
+	// sizeOfUint64 is the size of uint64 in bytes.
+	sizeOfUint64 = 8
+
+	// magicByteLen represents the size of magicByte in bytes.
+	magicByteLen = sizeOfUint8
+
+	// fileFormatVersionLen represents the size of fileFormatVersion in bytes.
+	fileFormatVersionLen = sizeOfUint8
+
+	// nodeCountLen represents the size of nodeCount in bytes.
+	nodeCountLen = sizeOfUint64
+
+	// recordCountLen represents the size of recordCount in bytes.
+	recordCountLen = sizeOfUint64
 )
 
 // binaryHeaderSize returns the total size of the binary header of the database
 // file. The size is returned as an int representing the total number of bytes.
-func binaryHeaderSize() int {
-	magicByteLen := 1         // byte
-	fileFormatVersionLen := 1 // uint8
-	recordCountLen := 8       // uint64
-
-	return (magicByteLen + fileFormatVersionLen + recordCountLen)
+func fileHeaderSize() int {
+	return (magicByteLen + fileFormatVersionLen + nodeCountLen + recordCountLen)
 }
 
 // buildFileHeader builds and returns a binary header for the RadixDB database
@@ -34,6 +48,7 @@ func (rdb *RadixDB) buildFileHeader() []byte {
 
 	buf.WriteByte(magicByte)
 	buf.WriteByte(fileFormatVersion)
+	binary.Write(&buf, binary.LittleEndian, rdb.numNodes)
 	binary.Write(&buf, binary.LittleEndian, rdb.numRecords)
 
 	return buf.Bytes()
