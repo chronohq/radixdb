@@ -34,7 +34,7 @@ func (rdb *RadixDB) buildFileHeader() []byte {
 
 	buf.WriteByte(magicByte)
 	buf.WriteByte(fileFormatVersion)
-	binary.Write(&buf, binary.LittleEndian, rdb.numNodes)
+	binary.Write(&buf, binary.LittleEndian, rdb.numRecords)
 
 	return buf.Bytes()
 }

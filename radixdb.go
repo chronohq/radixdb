@@ -22,9 +22,10 @@ var (
 // and write APIs. It maintains a reference to the root node and tracks various
 // metadata such as the total number of nodes.
 type RadixDB struct {
-	root     *node        // Pointer to the root node.
-	numNodes uint64       // Number of nodes in the tree.
-	mu       sync.RWMutex // RWLock for concurrency management.
+	root       *node        // Pointer to the root node.
+	numNodes   uint64       // Number of nodes in the tree.
+	numRecords uint64       // Number of records in the tree.
+	mu         sync.RWMutex // RWLock for concurrency management.
 }
 
 // Empty returns true if the tree is empty. This function is the exported
@@ -41,7 +42,7 @@ func (rdb *RadixDB) Len() uint64 {
 	rdb.mu.RLock()
 	defer rdb.mu.RUnlock()
 
-	return rdb.numNodes
+	return rdb.numRecords
 }
 
 // Insert adds a new key-value pair to the tree. The function returns an error
@@ -66,6 +67,7 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 	if rdb.empty() {
 		rdb.root = newNode
 		rdb.numNodes = 1
+		rdb.numRecords = 1
 
 		return nil
 	}
@@ -85,7 +87,8 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 			} else {
 				current.value = value
 				current.isRecord = true
-				rdb.numNodes++
+				rdb.numRecords++
+
 				return nil
 			}
 		}
@@ -111,6 +114,8 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 			}
 
 			rdb.numNodes++
+			rdb.numRecords++
+
 			return nil
 		}
 
@@ -134,20 +139,26 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 				// with existing edges to child nodes.
 				if current.key == nil && current.hasChildren() {
 					current.addChild(newNode)
+					rdb.numNodes++
 				} else if len(current.key) == len(prefix) {
 					// Common prefix matches the current node's key.
 					// Therefore newNode is a child of the current node.
 					current.addChild(newNode)
+					rdb.numNodes++
 				} else {
 					rdb.root = &node{key: prefix}
 					rdb.root.addChild(current)
 					rdb.root.addChild(newNode)
+
+					// Account for the new root node.
+					rdb.numNodes += 2
 				}
 			} else {
 				current.addChild(newNode)
+				rdb.numNodes++
 			}
 
-			rdb.numNodes++
+			rdb.numRecords++
 			return nil
 		}
 
@@ -211,7 +222,7 @@ func (rdb *RadixDB) Delete(key []byte) error {
 				return err
 			}
 
-			rdb.numNodes--
+			rdb.numRecords--
 
 			// If the deletion had left the parent node with only one child,
 			// it means that the child can take its place in the tree.
@@ -267,7 +278,7 @@ func (rdb *RadixDB) Delete(key []byte) error {
 			parent.children[index] = onlyChild
 		}
 
-		rdb.numNodes--
+		rdb.numRecords--
 		return nil
 	}
 
@@ -276,21 +287,21 @@ func (rdb *RadixDB) Delete(key []byte) error {
 	// can simply convert the node to a path compression node.
 	node.isRecord = false
 	node.value = nil
-	rdb.numNodes--
+	rdb.numRecords--
 
 	return nil
 }
 
 // empty returns true if the tree is empty.
 func (rdb *RadixDB) empty() bool {
-	return rdb.root == nil && rdb.numNodes == 0
+	return rdb.root == nil && rdb.numRecords == 0
 }
 
 // clear wipes out the entire in-memory tree. This function is internal and
 // is not exported because it is intended for testing purposes.
 func (rdb *RadixDB) clear() {
 	rdb.root = nil
-	rdb.numNodes = 0
+	rdb.numRecords = 0
 }
 
 // splitNode divides a node into two nodes based on a common prefix, creating
@@ -304,10 +315,13 @@ func (rdb *RadixDB) splitNode(parent *node, current *node, newNode *node, common
 	newParent.addChild(current)
 	newParent.addChild(newNode)
 
+	// Account for the newParent + newNode.
+	rdb.numNodes += 2
+
 	// Splitting the root node only requires setting the new branch as root.
 	if parent == nil && current == rdb.root {
 		rdb.root = newParent
-		rdb.numNodes++
+		rdb.numRecords++
 		return
 	}
 
@@ -315,7 +329,7 @@ func (rdb *RadixDB) splitNode(parent *node, current *node, newNode *node, common
 	for i, child := range parent.children {
 		if child == current {
 			parent.children[i] = newParent
-			rdb.numNodes++
+			rdb.numRecords++
 			return
 		}
 	}

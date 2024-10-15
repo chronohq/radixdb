@@ -143,6 +143,14 @@ func TestGet(t *testing.T) {
 			}
 		}
 
+		if rdb.numNodes != 21 {
+			t.Errorf("unexpected node count: got:%d, want:21", rdb.numNodes)
+		}
+
+		if rdb.numRecords != 15 {
+			t.Errorf("unexpected record count: got:%d, want:15", rdb.numRecords)
+		}
+
 		// Replay the insertion. Every key/value pair must match.
 		for _, test := range testCases {
 			result, err := rdb.Get(test.key)
@@ -220,6 +228,14 @@ func TestInsert(t *testing.T) {
 			if err := rdb.Insert(test.key, test.value); err != test.expectedErr {
 				t.Errorf("rdb.Insert: got:%v, want:%v", err, test.expectedErr)
 			}
+		}
+
+		if rdb.numNodes != 13 {
+			t.Errorf("unexpected node count: got:%d, want:13", rdb.numNodes)
+		}
+
+		if rdb.numRecords != 11 {
+			t.Errorf("unexpected record count: got:%d, want:11", rdb.numRecords)
 		}
 
 		if !bytes.Equal(rdb.root.key, []byte("a")) {
