@@ -370,7 +370,7 @@ func TestInsert(t *testing.T) {
 			}
 		}
 
-		rdb.clear()
+		rdb.Clear()
 	}
 
 	// Mild fuzzing: Insert random keys for memory errors.
@@ -726,7 +726,7 @@ func TestClear(t *testing.T) {
 	rdb.Insert([]byte("k2"), []byte("v2"))
 	rdb.Insert([]byte("k3"), []byte("v3"))
 
-	rdb.clear()
+	rdb.Clear()
 
 	if len := rdb.Len(); len != 0 {
 		t.Errorf("Len(): got:%d, want:0", len)

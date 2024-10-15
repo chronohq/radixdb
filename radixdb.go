@@ -300,6 +300,15 @@ func (rdb *RadixDB) Delete(key []byte) error {
 	return nil
 }
 
+// Clear wipes the entire RadixDB tree from memory, effectively resetting the
+// database. This operation is irreversible, so use it with caution.
+func (rdb *RadixDB) Clear() {
+	rdb.mu.Lock()
+	defer rdb.mu.Unlock()
+
+	rdb.clear()
+}
+
 // empty returns true if the tree is empty.
 func (rdb *RadixDB) empty() bool {
 	return rdb.root == nil && rdb.numRecords == 0
@@ -309,6 +318,7 @@ func (rdb *RadixDB) empty() bool {
 // is not exported because it is intended for testing purposes.
 func (rdb *RadixDB) clear() {
 	rdb.root = nil
+	rdb.numNodes = 0
 	rdb.numRecords = 0
 }
 
