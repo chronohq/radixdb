@@ -22,10 +22,11 @@ var (
 // and write APIs. It maintains a reference to the root node and tracks various
 // metadata such as the total number of nodes.
 type RadixDB struct {
-	root       *node        // Pointer to the root node.
-	numNodes   uint64       // Number of nodes in the tree.
-	numRecords uint64       // Number of records in the tree.
-	mu         sync.RWMutex // RWLock for concurrency management.
+	root            *node        // Pointer to the root node.
+	numNodes        uint64       // Number of nodes in the tree.
+	numRecords      uint64       // Number of records in the tree.
+	mu              sync.RWMutex // RWLock for concurrency management.
+	checksumEnabled bool         // True if checksum is enabled.
 }
 
 // Empty returns true if the tree is empty. This function is the exported
