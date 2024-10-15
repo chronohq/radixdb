@@ -2,6 +2,7 @@ package radixdb
 
 import (
 	"bytes"
+	"hash/crc32"
 	"testing"
 )
 
@@ -255,6 +256,31 @@ func TestRemoveChild(t *testing.T) {
 		if len(subject.children) != 0 {
 			t.Errorf("unexpected child count: got:%d, want:0", len(subject.children))
 		}
+	}
+}
+
+func TestUpdateChecksum(t *testing.T) {
+	n := &node{
+		key:      []byte("apple"),
+		value:    []byte("sauce"),
+		isRecord: true,
+	}
+
+	// Manually compute the correct checksum.
+	h := crc32.NewIEEE()
+	h.Write(n.key)
+	h.Write(n.value)
+	h.Write([]byte{1})
+
+	expectedChecksum := h.Sum32()
+
+	// Compute the test subject.
+	if err := n.updateChecksum(); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if n.checksum != expectedChecksum {
+		t.Errorf("checksum mismatch, got %d, want %d", n.checksum, expectedChecksum)
 	}
 }
 

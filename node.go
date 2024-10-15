@@ -2,6 +2,7 @@ package radixdb
 
 import (
 	"bytes"
+	"hash/crc32"
 	"sort"
 )
 
@@ -14,6 +15,7 @@ type node struct {
 	value    []byte  // Data associated with this node, if any.
 	isRecord bool    // True if node is a record; false if path component.
 	children []*node // Pointers to child nodes.
+	checksum uint32
 }
 
 // hasChidren returns true if the receiver node has children.
@@ -90,6 +92,31 @@ func (n *node) removeChild(child *node) error {
 	// We then truncate the slice by one element to remove the empty space.
 	copy(n.children[index:], n.children[index+1:])
 	n.children = n.children[:len(n.children)-1]
+
+	return nil
+}
+
+// updateChecksum computes and updates the checksum for the node using CRC32.
+func (n *node) updateChecksum() error {
+	h := crc32.NewIEEE()
+
+	if _, err := h.Write(n.key); err != nil {
+		return err
+	}
+
+	if _, err := h.Write(n.value); err != nil {
+		return err
+	}
+
+	// The isRecord field is equally as important as the key and value
+	// fields since an incorrect value entails a corrupt tree.
+	if n.isRecord {
+		h.Write([]byte{1})
+	} else {
+		h.Write([]byte{0})
+	}
+
+	n.checksum = h.Sum32()
 
 	return nil
 }
