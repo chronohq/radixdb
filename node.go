@@ -121,6 +121,19 @@ func (n *node) updateChecksum() error {
 	return nil
 }
 
+// shallowCopyFrom copies the properties from the src node to the receiver node.
+// This function performs a shallow copy, meaning that the copied fields share
+// memory references with the original and are not actual copies. The function
+// is intended for cases where sustaining the receiver's address is necessary.
+func (n *node) shallowCopyFrom(src *node) {
+	n.key = src.key
+	n.value = src.value
+	n.isRecord = src.isRecord
+	n.children = src.children
+
+	n.updateChecksum()
+}
+
 // prependKey prepends the given prefix to the node's existing key.
 func (n *node) prependKey(prefix []byte) {
 	if len(prefix) == 0 {

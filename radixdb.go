@@ -258,10 +258,7 @@ func (rdb *RadixDB) Delete(key []byte) error {
 					onlyChild.prependKey(parent.key)
 				}
 
-				parent.key = onlyChild.key
-				parent.value = onlyChild.value
-				parent.isRecord = onlyChild.isRecord
-				parent.children = onlyChild.children
+				parent.shallowCopyFrom(onlyChild)
 			}
 		}
 
