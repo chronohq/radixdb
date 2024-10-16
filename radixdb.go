@@ -108,7 +108,7 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 		// For example, suppose newNode.key is "app" and current.key is "apple".
 		// The common prefix is "app", and thus "app" becomes the parent of "le".
 		if len(prefix) == len(newNode.key) && len(prefix) < len(current.key) {
-			current.key = current.key[len(newNode.key):]
+			current.setKey(current.key[len(newNode.key):])
 			newNode.addChild(current)
 
 			if parent == nil {
@@ -139,7 +139,7 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 		// at the deepest level of the tree for the given key.
 		key = key[len(prefix):]
 		nextNode := current.findCompatibleChild(key)
-		newNode.key = newNode.key[len(prefix):]
+		newNode.setKey(newNode.key[len(prefix):])
 
 		if nextNode == nil {
 			if current == rdb.root {
@@ -323,8 +323,8 @@ func (rdb *RadixDB) clear() {
 // an intermediate parent node. It does so by updating the keys of the current
 // and new nodes to contain only the suffixes after the common prefix.
 func (rdb *RadixDB) splitNode(parent *node, current *node, newNode *node, commonPrefix []byte) {
-	current.key = current.key[len(commonPrefix):]
-	newNode.key = newNode.key[len(commonPrefix):]
+	current.setKey(current.key[len(commonPrefix):])
+	newNode.setKey(newNode.key[len(commonPrefix):])
 
 	newParent := &node{key: commonPrefix}
 	newParent.addChild(current)

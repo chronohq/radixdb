@@ -134,6 +134,13 @@ func (n *node) shallowCopyFrom(src *node) {
 	n.updateChecksum()
 }
 
+// setKey updates the node's key with the provided value and recalculates
+// the checksum to reflect the update.
+func (n *node) setKey(key []byte) {
+	n.key = key
+	n.updateChecksum()
+}
+
 // prependKey prepends the given prefix to the node's existing key.
 func (n *node) prependKey(prefix []byte) {
 	if len(prefix) == 0 {
@@ -146,4 +153,5 @@ func (n *node) prependKey(prefix []byte) {
 	copy(newKey[len(prefix):], n.key)
 
 	n.key = newKey
+	n.updateChecksum()
 }
