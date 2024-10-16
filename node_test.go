@@ -2,7 +2,6 @@ package radixdb
 
 import (
 	"bytes"
-	"hash/crc32"
 	"testing"
 )
 
@@ -267,12 +266,7 @@ func TestUpdateChecksum(t *testing.T) {
 	}
 
 	// Manually compute the correct checksum.
-	h := crc32.NewIEEE()
-	h.Write(n.key)
-	h.Write(n.value)
-	h.Write([]byte{1})
-
-	expectedChecksum := h.Sum32()
+	expectedChecksum, _ := n.calculateChecksum()
 
 	// Compute the test subject.
 	if err := n.updateChecksum(); err != nil {
@@ -280,7 +274,11 @@ func TestUpdateChecksum(t *testing.T) {
 	}
 
 	if n.checksum != expectedChecksum {
-		t.Errorf("checksum mismatch, got %d, want %d", n.checksum, expectedChecksum)
+		t.Errorf("checksum mismatch, got:%d, want:%d", n.checksum, expectedChecksum)
+	}
+
+	if !n.verifyChecksum() {
+		t.Errorf("checksum verification failed, node:%q", n.key)
 	}
 }
 
@@ -300,5 +298,9 @@ func TestPrependKey(t *testing.T) {
 
 	if !bytes.Equal(subject.key, expected) {
 		t.Errorf("testPrepend(): got:%q, want:%q", subject.key, expected)
+	}
+
+	if !subject.verifyChecksum() {
+		t.Errorf("checksum verification failed, node:%q", subject.key)
 	}
 }

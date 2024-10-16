@@ -376,25 +376,44 @@ func TestInsert(t *testing.T) {
 	// Mild fuzzing: Insert random keys for memory errors.
 	{
 		numRandomInserts := 150000
-		numRecordsBefore := rdb.Len()
-		numRecordsExpected := uint64(numRandomInserts + int(numRecordsBefore))
+		randomKeys := make([][]byte, numRandomInserts)
 
 		for i := 0; i < numRandomInserts; i++ {
 			// Random key length between 4 and 128 bytes.
 			keyLength := mrand.IntN(128-4) + 4
-			randomKey := make([]byte, keyLength)
+			randomKeys[i] = make([]byte, keyLength)
 
-			if _, err := rand.Read(randomKey); err != nil {
+			if _, err := rand.Read(randomKeys[i]); err != nil {
 				t.Fatal(err)
 			}
 
-			if err := rdb.Insert(randomKey, randomKey); err != nil {
-				t.Fatalf("%v: %v", randomKey, err)
+			if err := rdb.Insert(randomKeys[i], randomKeys[i]); err != nil {
+				t.Fatalf("%v: %v", randomKeys[i], err)
+			}
+
+			if _, err := rdb.Get(randomKeys[i]); err != nil {
+				t.Fatalf("%v: %v", randomKeys[i], err)
 			}
 		}
 
-		if len := rdb.Len(); len != numRecordsExpected {
-			t.Errorf("Len(): got:%d, want:%d", len, numRecordsExpected)
+		if len := rdb.Len(); len != uint64(numRandomInserts) {
+			t.Errorf("Len(): got:%d, want:%d", len, numRandomInserts)
+		}
+
+		for _, k := range randomKeys {
+			if _, err := rdb.Get(k); err != nil {
+				t.Fatalf("%v: %v", k, err)
+			}
+		}
+
+		for _, k := range randomKeys {
+			if err := rdb.Delete(k); err != nil {
+				t.Fatalf("%v: %v", k, err)
+			}
+		}
+
+		if len := rdb.Len(); len != 0 {
+			t.Errorf("Len(): got:%d, want:0", len)
 		}
 	}
 }

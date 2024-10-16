@@ -15,7 +15,7 @@ type node struct {
 	value    []byte  // Data associated with this node, if any.
 	isRecord bool    // True if node is a record; false if path component.
 	children []*node // Pointers to child nodes.
-	checksum uint32
+	checksum uint32  // CRC32 checksum of the node content.
 }
 
 // hasChidren returns true if the receiver node has children.
@@ -96,29 +96,56 @@ func (n *node) removeChild(child *node) error {
 	return nil
 }
 
-// updateChecksum computes and updates the checksum for the node using CRC32.
-func (n *node) updateChecksum() error {
+// calculateChecksum calculates the CRC32 checksum of the receiver node.
+func (n node) calculateChecksum() (uint32, error) {
 	h := crc32.NewIEEE()
 
 	if _, err := h.Write(n.key); err != nil {
-		return err
+		return 0, err
 	}
 
 	if _, err := h.Write(n.value); err != nil {
-		return err
+		return 0, err
 	}
 
 	// The isRecord field is equally as important as the key and value
-	// fields since an incorrect value entails a corrupt tree.
+	// fields since an incorrect value means a corrupt tree.
 	if n.isRecord {
 		h.Write([]byte{1})
 	} else {
 		h.Write([]byte{0})
 	}
 
-	n.checksum = h.Sum32()
+	return h.Sum32(), nil
+}
+
+// updateChecksum computes and updates the checksum for the node using CRC32.
+func (n *node) updateChecksum() error {
+	checksum, err := n.calculateChecksum()
+
+	if err != nil {
+		return err
+	}
+
+	n.checksum = checksum
 
 	return nil
+}
+
+// verifyChecksum verifies the integrity of the node's data by comparing the
+// stored checksum based on the current node state.
+func (n node) verifyChecksum() bool {
+	if n.checksum == 0 {
+		return false
+	}
+
+	checksum, err := n.calculateChecksum()
+
+	if err != nil {
+		return false
+	}
+
+	return n.checksum == checksum
 }
 
 // shallowCopyFrom copies the properties from the src node to the receiver node.

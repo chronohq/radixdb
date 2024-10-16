@@ -11,6 +11,10 @@ var (
 	// key that already exists in the database.
 	ErrDuplicateKey = errors.New("cannot insert duplicate key")
 
+	// ErrInvalidChecksum is returned when the checksum of a node does not match
+	// the expected value, indicating potential data corruption or tampering.
+	ErrInvalidChecksum = errors.New("checksum mismatch detected")
+
 	// ErrKeyNotFound is returned when the key does not exist in the tree.
 	ErrKeyNotFound = errors.New("key not found")
 
@@ -53,9 +57,8 @@ func (rdb *RadixDB) Len() uint64 {
 	return rdb.numRecords
 }
 
-// Insert adds a new key-value pair to the tree. The function returns an error
-// if a duplicate or nil key is detected. A write lock is acquired during the
-// operation to ensure concurrency safety.
+// Insert adds a new key-value pair to the tree. The function returns an
+// error if a duplicate or nil key is detected.
 func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 	if key == nil {
 		return ErrNilKey
@@ -70,6 +73,8 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 		isRecord: true,
 		children: []*node{},
 	}
+
+	newNode.updateChecksum()
 
 	// The tree is empty: Simply set newNode as the root.
 	if rdb.empty() {
@@ -95,6 +100,8 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 			} else {
 				current.value = value
 				current.isRecord = true
+				current.updateChecksum()
+
 				rdb.numRecords++
 
 				return nil
@@ -178,8 +185,8 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 	}
 }
 
-// Get retrieves the value associated with the given key. It returns the value
-// as a byte slice along with any potential errors. For example, if the key does
+// Get retrieves the value that matches the given key. It returns the value as
+// a byte slice along with any potential errors. For example, if the key does
 // not exist, ErrNotKeyFound is returned.
 func (rdb *RadixDB) Get(key []byte) ([]byte, error) {
 	if key == nil {
@@ -199,9 +206,14 @@ func (rdb *RadixDB) Get(key []byte) ([]byte, error) {
 		return nil, ErrKeyNotFound
 	}
 
+	if !node.verifyChecksum() {
+		return nil, ErrInvalidChecksum
+	}
+
 	return node.value, nil
 }
 
+// Delete removes the node that matches the given key.
 func (rdb *RadixDB) Delete(key []byte) error {
 	if key == nil {
 		return ErrNilKey
@@ -217,6 +229,10 @@ func (rdb *RadixDB) Delete(key []byte) error {
 
 	if !node.isRecord {
 		return ErrKeyNotFound
+	}
+
+	if !node.verifyChecksum() {
+		return ErrInvalidChecksum
 	}
 
 	// Determine how to remove the current node based on the number
@@ -329,6 +345,7 @@ func (rdb *RadixDB) splitNode(parent *node, current *node, newNode *node, common
 	newParent := &node{key: commonPrefix}
 	newParent.addChild(current)
 	newParent.addChild(newNode)
+	newParent.updateChecksum()
 
 	// Account for the newParent + newNode.
 	rdb.numNodes += 2
