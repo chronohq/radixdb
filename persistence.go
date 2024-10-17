@@ -3,6 +3,7 @@ package radixdb
 import (
 	"bytes"
 	"encoding/binary"
+	"hash/crc32"
 	"time"
 )
 
@@ -18,6 +19,9 @@ const (
 
 	// sizeOfUint8 is the size of uint8 in bytes.
 	sizeOfUint8 = 1
+
+	// sizeOfUint32 is the size of uint32 in bytes.
+	sizeOfUint32 = 4
 
 	// sizeOfUint64 is the size of uint64 in bytes.
 	sizeOfUint64 = 8
@@ -40,11 +44,17 @@ const (
 	// updatedAtLen represents the size of updatedAt in bytes.
 	updatedAtLen = sizeOfUint64
 
+	// headerChecsumLen represents the size of the checksum in bytes.
+	headerChecksumLen = sizeOfUint32
+
 	// createdAtOffset represents the starting position of the createdAt field.
 	createdAtOffset = magicByteLen + fileFormatVersion + nodeCountLen + recordCountLen
 
 	// updatedAtOffset represents the starting position of the updatedAt field.
 	updatedAtOffset = magicByteLen + fileFormatVersion + nodeCountLen + recordCountLen + createdAtLen
+
+	// headerChecksumOffset
+	headerChecksumOffset = magicByteLen + fileFormatVersion + nodeCountLen + recordCountLen + createdAtLen + updatedAtLen
 )
 
 type fileHeader []byte
@@ -52,7 +62,13 @@ type fileHeader []byte
 // fileHeaderSize returns the total size of the binary header of the database
 // file. The size is returned as an int representing the total number of bytes.
 func fileHeaderSize() int {
-	return (magicByteLen + fileFormatVersionLen + nodeCountLen + recordCountLen + createdAtLen + updatedAtLen)
+	return magicByteLen +
+		fileFormatVersionLen +
+		nodeCountLen +
+		recordCountLen +
+		createdAtLen +
+		updatedAtLen +
+		headerChecksumLen
 }
 
 // newFileHeader returns a new binary header for the database file.
@@ -69,6 +85,9 @@ func newFileHeader() fileHeader {
 	// Reserve space for the createdAt and updatedAt timestamps.
 	binary.Write(&buf, binary.LittleEndian, uint64(0)) // createdAt
 	binary.Write(&buf, binary.LittleEndian, uint64(0)) // updatedAt
+
+	// Reserve space for the CRC32 header checksum.
+	binary.Write(&buf, binary.LittleEndian, uint32(0)) // checksum
 
 	return buf.Bytes()
 }
@@ -113,4 +132,13 @@ func (fh fileHeader) getUpdatedAt() (time.Time, error) {
 	}
 
 	return time.Unix(int64(ts), 0), nil
+}
+
+// updateChecksum computes and updates the header checksum using CRC32.
+func (fh fileHeader) updateChecksum() {
+	h := crc32.NewIEEE()
+
+	h.Write(fh[:headerChecksumOffset])
+
+	binary.LittleEndian.PutUint32(fh[headerChecksumOffset:], h.Sum32())
 }

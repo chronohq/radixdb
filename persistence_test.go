@@ -1,16 +1,14 @@
 package radixdb
 
 import (
+	"encoding/binary"
+	"hash/crc32"
 	"testing"
 	"time"
 )
 
 func TestSetCreatedAt(t *testing.T) {
 	rdb := New()
-
-	if rdb.header == nil {
-		t.Error("binary file header is not initialized")
-	}
 
 	if len := len(rdb.header); len != fileHeaderSize() {
 		t.Errorf("unexpected header size, got:%d, want:%d", len, fileHeaderSize())
@@ -33,10 +31,6 @@ func TestSetCreatedAt(t *testing.T) {
 func TestSetUpdatedAt(t *testing.T) {
 	rdb := New()
 
-	if rdb.header == nil {
-		t.Error("binary file header is not initialized")
-	}
-
 	if len := len(rdb.header); len != fileHeaderSize() {
 		t.Errorf("unexpected header size, got:%d, want:%d", len, fileHeaderSize())
 	}
@@ -52,5 +46,21 @@ func TestSetUpdatedAt(t *testing.T) {
 
 	if got.Unix() != want.Unix() {
 		t.Errorf("unexpected updatedAt, got:%d, want:%d", got.Unix(), want.Unix())
+	}
+}
+
+func TestUpdateHeaderChecksum(t *testing.T) {
+	header := newFileHeader()
+	header.setCreatedAt(time.Date(1969, time.July, 20, 20, 17, 0, 0, time.UTC))
+	header.updateChecksum()
+
+	h := crc32.NewIEEE()
+	h.Write(header[:headerChecksumOffset])
+
+	want := h.Sum32()
+	got := binary.LittleEndian.Uint32(header[headerChecksumOffset:])
+
+	if got != want {
+		t.Errorf("checksum mismatch, got:%d, want:%d", got, want)
 	}
 }
