@@ -30,11 +30,15 @@ type RadixDB struct {
 	numNodes   uint64       // Number of nodes in the tree.
 	numRecords uint64       // Number of records in the tree.
 	mu         sync.RWMutex // RWLock for concurrency management.
+	header     fileHeader   // Header region of the database file.
 }
 
 // New initializes and returns a new instance of RadixDB.
 func New() *RadixDB {
-	return &RadixDB{}
+	ret := &RadixDB{}
+	ret.initFileHeader()
+
+	return ret
 }
 
 // Empty returns true if the tree is empty. This function is the exported
@@ -471,4 +475,10 @@ func (rdb *RadixDB) traverse(cb func(*node) error) error {
 	}
 
 	return nil
+}
+
+// initFileHeader initializes the file header for RadixDB, setting up initial
+// values and reserving space for future population.
+func (rdb *RadixDB) initFileHeader() {
+	rdb.header = newFileHeader()
 }

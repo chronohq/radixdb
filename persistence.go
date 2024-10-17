@@ -3,6 +3,7 @@ package radixdb
 import (
 	"bytes"
 	"encoding/binary"
+	"time"
 )
 
 const (
@@ -32,24 +33,60 @@ const (
 
 	// recordCountLen represents the size of recordCount in bytes.
 	recordCountLen = sizeOfUint64
+
+	// createdAtLen represents the size of createdAt in bytes.
+	createdAtLen = sizeOfUint64
+
+	// updatedAtLen represents the size of updatedAt in bytes.
+	updatedAtLen = sizeOfUint64
+
+	// createdAtOffset represents the starting position of the createdAt field.
+	createdAtOffset = magicByteLen + fileFormatVersion + nodeCountLen + recordCountLen
 )
 
-// binaryHeaderSize returns the total size of the binary header of the database
+type fileHeader []byte
+
+// fileHeaderSize returns the total size of the binary header of the database
 // file. The size is returned as an int representing the total number of bytes.
 func fileHeaderSize() int {
-	return (magicByteLen + fileFormatVersionLen + nodeCountLen + recordCountLen)
+	return (magicByteLen + fileFormatVersionLen + nodeCountLen + recordCountLen + createdAtLen + updatedAtLen)
 }
 
-// buildFileHeader builds and returns a binary header for the RadixDB database
-// file. This function encodes multi-byte native types, such as the number of
-// nodes (uint64) using little-endian encoding.
-func (rdb *RadixDB) buildFileHeader() []byte {
+// newFileHeader returns a new binary header for the database file.
+func newFileHeader() fileHeader {
 	var buf bytes.Buffer
 
 	buf.WriteByte(magicByte)
 	buf.WriteByte(fileFormatVersion)
-	binary.Write(&buf, binary.LittleEndian, rdb.numNodes)
-	binary.Write(&buf, binary.LittleEndian, rdb.numRecords)
+
+	// Reserve space for numNodes and numRecords.
+	binary.Write(&buf, binary.LittleEndian, uint64(0)) // nodeCount
+	binary.Write(&buf, binary.LittleEndian, uint64(0)) // recordCount
+
+	// Reserve space for the createdAt and updatedAt timestamps.
+	binary.Write(&buf, binary.LittleEndian, uint64(0)) // createdAt
+	binary.Write(&buf, binary.LittleEndian, uint64(0)) // updatedAt
 
 	return buf.Bytes()
+}
+
+// setCreatedAt updates the createdAt field in the fileHeader. It writes
+// the given time as a uint64 Unix timestamp in little-endian byte order.
+func (fh fileHeader) setCreatedAt(t time.Time) {
+	ts := uint64(t.Unix())
+	binary.LittleEndian.PutUint64(fh[createdAtOffset:], ts)
+}
+
+// getCreatedAt decodes the createdAt field in the fileHeader, and returns
+// it as Go's standard time.Time value.
+func (fh fileHeader) getCreatedAt() (time.Time, error) {
+	var ts uint64
+
+	buf := bytes.NewReader(fh[createdAtOffset:])
+
+	if err := binary.Read(buf, binary.LittleEndian, &ts); err != nil {
+		return time.Time{}, err
+	}
+
+	return time.Unix(int64(ts), 0), nil
 }
