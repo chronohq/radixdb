@@ -27,9 +27,6 @@ const (
 	// fileFormatVersionLen represents the size of fileFormatVersion in bytes.
 	fileFormatVersionLen = sizeOfUint8
 
-	// checksumEnabledLen represents the size of checksumEnabled in bytes.
-	checksumEnabledLen = sizeOfUint8
-
 	// nodeCountLen represents the size of nodeCount in bytes.
 	nodeCountLen = sizeOfUint64
 
@@ -40,7 +37,7 @@ const (
 // binaryHeaderSize returns the total size of the binary header of the database
 // file. The size is returned as an int representing the total number of bytes.
 func fileHeaderSize() int {
-	return (magicByteLen + fileFormatVersionLen + checksumEnabledLen + nodeCountLen + recordCountLen)
+	return (magicByteLen + fileFormatVersionLen + nodeCountLen + recordCountLen)
 }
 
 // buildFileHeader builds and returns a binary header for the RadixDB database
@@ -48,15 +45,9 @@ func fileHeaderSize() int {
 // nodes (uint64) using little-endian encoding.
 func (rdb *RadixDB) buildFileHeader() []byte {
 	var buf bytes.Buffer
-	var checksumEnabled uint8
-
-	if rdb.checksumEnabled {
-		checksumEnabled = 1
-	}
 
 	buf.WriteByte(magicByte)
 	buf.WriteByte(fileFormatVersion)
-	buf.WriteByte(checksumEnabled)
 	binary.Write(&buf, binary.LittleEndian, rdb.numNodes)
 	binary.Write(&buf, binary.LittleEndian, rdb.numRecords)
 
