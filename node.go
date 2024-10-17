@@ -2,6 +2,7 @@ package radixdb
 
 import (
 	"bytes"
+	"encoding/binary"
 	"hash/crc32"
 	"sort"
 )
@@ -181,4 +182,67 @@ func (n *node) prependKey(prefix []byte) {
 
 	n.key = newKey
 	n.updateChecksum()
+}
+
+// serialize converts the receiver node into a platform-agonostic binary
+// representation, and returns it. The actual return type is a byte slice.
+func (n node) serialize() ([]byte, error) {
+	var buf bytes.Buffer
+
+	if !n.verifyChecksum() {
+		return nil, ErrInvalidChecksum
+	}
+
+	// Step 1: Serialize the node checksum.
+	if err := binary.Write(&buf, binary.LittleEndian, n.checksum); err != nil {
+		return nil, err
+	}
+
+	// Step 2: Serialize the key and its length.
+	keyLen := uint64(len(n.key))
+
+	if err := binary.Write(&buf, binary.LittleEndian, keyLen); err != nil {
+		return nil, err
+	}
+
+	if _, err := buf.Write(n.key); err != nil {
+		return nil, err
+	}
+
+	// Step 3: Serialize the value and its length, if the node holds a record.
+	if n.isRecord {
+		valLen := uint64(len(n.value))
+
+		if err := binary.Write(&buf, binary.LittleEndian, valLen); err != nil {
+			return nil, err
+		}
+
+		if valLen > 0 {
+			if _, err := buf.Write(n.value); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		if err := binary.Write(&buf, binary.LittleEndian, uint64(0)); err != nil {
+			return nil, err
+		}
+	}
+
+	// Step 4: Serialize the number of children.
+	numChildren := uint64(len(n.children))
+
+	if err := binary.Write(&buf, binary.LittleEndian, numChildren); err != nil {
+		return nil, err
+	}
+
+	// Step 5: Reserve the space to hold the child node offsets.
+	tmpOffset := uint64(0)
+
+	for i := 0; i < int(numChildren); i++ {
+		if err := binary.Write(&buf, binary.LittleEndian, tmpOffset); err != nil {
+			return nil, err
+		}
+	}
+
+	return buf.Bytes(), nil
 }

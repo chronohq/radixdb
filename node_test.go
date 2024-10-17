@@ -2,6 +2,7 @@ package radixdb
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 )
 
@@ -302,5 +303,118 @@ func TestPrependKey(t *testing.T) {
 
 	if !subject.verifyChecksum() {
 		t.Errorf("checksum verification failed, node:%q", subject.key)
+	}
+}
+
+func TestSerialize(t *testing.T) {
+	subject := node{
+		key:      []byte("apple"),
+		value:    []byte("sauce"),
+		isRecord: true,
+		children: nil,
+	}
+
+	subject.addChild(&node{key: []byte("test-1")})
+	subject.addChild(&node{key: []byte("test-2")})
+
+	subject.updateChecksum()
+
+	rawBytes, err := subject.serialize()
+
+	if err != nil {
+		t.Errorf("node serialization failed: %v", err)
+	}
+
+	// Manually decode the raw binary representation.
+	reader := bytes.NewReader(rawBytes)
+
+	// Reconstruct the node checksum.
+	var checksum uint32
+
+	if err := binary.Read(reader, binary.LittleEndian, &checksum); err != nil {
+		t.Errorf("failed to read checksum: %v", err)
+	}
+
+	if checksum != subject.checksum {
+		t.Errorf("unexpected checksum, got:%v, want:%v", checksum, subject.checksum)
+	}
+
+	// Reconstruct the key and its length.
+	var keyLen uint64
+
+	if err := binary.Read(reader, binary.LittleEndian, &keyLen); err != nil {
+		t.Fatalf("failed to read key length: %v", err)
+	}
+
+	if want := uint64(len(subject.key)); keyLen != want {
+		t.Errorf("unexpected key length, got:%d, want:%d", keyLen, len(subject.key))
+	}
+
+	keyData := make([]byte, keyLen)
+
+	if _, err := reader.Read(keyData); err != nil {
+		t.Fatalf("failed to read key data: %v", err)
+	}
+
+	if !bytes.Equal(keyData, subject.key) {
+		t.Errorf("unexpected key data, got:%q, want:%q", keyData, subject.key)
+	}
+
+	// Reconstruct the value and its length.
+	var valLen uint64
+
+	if err := binary.Read(reader, binary.LittleEndian, &valLen); err != nil {
+		t.Fatalf("failed to read value length: %v", err)
+	}
+
+	if want := uint64(len(subject.value)); want != valLen {
+		t.Errorf("unexpected value length, got:%d, want:%d", valLen, want)
+	}
+
+	valData := make([]byte, valLen)
+
+	if _, err := reader.Read(valData); err != nil {
+		t.Fatalf("failed to read value data: %v", err)
+	}
+
+	if !bytes.Equal(valData, subject.value) {
+		t.Errorf("unexpected value data, got:%q, want:%q", valData, subject.value)
+	}
+
+	// Reconstruct the child count.
+	var numChildren uint64
+
+	if err := binary.Read(reader, binary.LittleEndian, &numChildren); err != nil {
+		t.Fatalf("failed to read child count: %v", err)
+	}
+
+	if want := uint64(len(subject.children)); want != numChildren {
+		t.Errorf("unexpected child count, got:%d, want:%d", numChildren, want)
+	}
+
+	// Verify that the child offset region is reserved.
+	expectedReservedSpace := numChildren * sizeOfUint64
+
+	if remaining := reader.Len(); remaining != int(expectedReservedSpace) {
+		t.Errorf("unexpected child offset region size, got:%d, want:%d", remaining, expectedReservedSpace)
+	}
+
+	// Test a node with invalid checksum.
+	{
+		subject := node{
+			key:      []byte("banana"),
+			value:    []byte("smoothie"),
+			isRecord: true,
+			children: nil,
+		}
+
+		subject.updateChecksum()
+
+		// Tamper with the key.
+		subject.key = []byte("bandana")
+
+		if _, err := subject.serialize(); err != ErrInvalidChecksum {
+			t.Error("expected node serialization failure")
+		}
 	}
 }
