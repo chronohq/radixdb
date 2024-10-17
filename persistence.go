@@ -42,6 +42,9 @@ const (
 
 	// createdAtOffset represents the starting position of the createdAt field.
 	createdAtOffset = magicByteLen + fileFormatVersion + nodeCountLen + recordCountLen
+
+	// updatedAtOffset represents the starting position of the updatedAt field.
+	updatedAtOffset = magicByteLen + fileFormatVersion + nodeCountLen + recordCountLen + createdAtLen
 )
 
 type fileHeader []byte
@@ -77,12 +80,33 @@ func (fh fileHeader) setCreatedAt(t time.Time) {
 	binary.LittleEndian.PutUint64(fh[createdAtOffset:], ts)
 }
 
+// setUpdatedAt updates the updatedAt field in the fileHeader. It writes
+// the given time as a uint64 Unix timestamp in little-endian byte order.
+func (fh fileHeader) setUpdatedAt(t time.Time) {
+	ts := uint64(t.Unix())
+	binary.LittleEndian.PutUint64(fh[updatedAtOffset:], ts)
+}
+
 // getCreatedAt decodes the createdAt field in the fileHeader, and returns
 // it as Go's standard time.Time value.
 func (fh fileHeader) getCreatedAt() (time.Time, error) {
 	var ts uint64
 
 	buf := bytes.NewReader(fh[createdAtOffset:])
+
+	if err := binary.Read(buf, binary.LittleEndian, &ts); err != nil {
+		return time.Time{}, err
+	}
+
+	return time.Unix(int64(ts), 0), nil
+}
+
+// getUpdatedAt decodes the updatedAt field in the fileHeader, and returns
+// it as Go's standard time.Time value.
+func (fh fileHeader) getUpdatedAt() (time.Time, error) {
+	var ts uint64
+
+	buf := bytes.NewReader(fh[updatedAtOffset:])
 
 	if err := binary.Read(buf, binary.LittleEndian, &ts); err != nil {
 		return time.Time{}, err
