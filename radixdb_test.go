@@ -756,6 +756,33 @@ func TestClear(t *testing.T) {
 	}
 }
 
+func TestTraverse(t *testing.T) {
+	rdb := basicTestTree()
+
+	nodesVisited := uint64(0)
+	recordsVisited := uint64(0)
+
+	cb := func(n *node) error {
+		if n.isRecord {
+			recordsVisited++
+		}
+		nodesVisited++
+		return nil
+	}
+
+	if err := rdb.traverse(cb); err != nil {
+		t.Errorf("tree traversal failed: %v", err)
+	}
+
+	if nodesVisited != rdb.numNodes {
+		t.Errorf("unexpected node visit count: got:%d, want:%d", nodesVisited, rdb.numNodes)
+	}
+
+	if recordsVisited != rdb.Len() {
+		t.Errorf("unexpected node visit count: got:%d, want:%d", recordsVisited, rdb.Len())
+	}
+}
+
 // Expected tree structure:
 // .
 // ├─ ap ("<nil>")

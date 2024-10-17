@@ -440,3 +440,35 @@ func longestCommonPrefix(a, b []byte) []byte {
 
 	return a[:i]
 }
+
+// traverse performs a depth-first search (DFS) traversal on the tree.
+// It uses a stack-based technique instead of recursion, and also accepts
+// a callback function, which is executed on each node visit.
+func (rdb *RadixDB) traverse(cb func(*node) error) error {
+	if rdb.root == nil {
+		return nil
+	}
+
+	stack := []*node{rdb.root}
+
+	for len(stack) > 0 {
+		// Pop the next node from the stack.
+		current := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		if current == nil {
+			continue
+		}
+
+		if err := cb(current); err != nil {
+			return err
+		}
+
+		// Stack the chlidren by appending them in reverse order.
+		for i := len(current.children) - 1; i >= 0; i-- {
+			stack = append(stack, current.children[i])
+		}
+	}
+
+	return nil
+}
