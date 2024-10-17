@@ -26,18 +26,15 @@ var (
 // and write APIs. It maintains a reference to the root node and tracks various
 // metadata such as the total number of nodes.
 type RadixDB struct {
-	root            *node        // Pointer to the root node.
-	numNodes        uint64       // Number of nodes in the tree.
-	numRecords      uint64       // Number of records in the tree.
-	mu              sync.RWMutex // RWLock for concurrency management.
-	checksumEnabled bool         // True if checksum is enabled.
+	root       *node        // Pointer to the root node.
+	numNodes   uint64       // Number of nodes in the tree.
+	numRecords uint64       // Number of records in the tree.
+	mu         sync.RWMutex // RWLock for concurrency management.
 }
 
 // New initializes and returns a new instance of RadixDB.
 func New() *RadixDB {
-	return &RadixDB{
-		checksumEnabled: true,
-	}
+	return &RadixDB{}
 }
 
 // Empty returns true if the tree is empty. This function is the exported
@@ -164,6 +161,7 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 					rdb.root = &node{key: prefix}
 					rdb.root.addChild(current)
 					rdb.root.addChild(newNode)
+					rdb.root.updateChecksum()
 
 					// Account for the new root node.
 					rdb.numNodes += 2
