@@ -41,6 +41,20 @@ traverses the tree to compute its on-disk layout, ensuring data integrity and co
 Future versions may implement techniques such as [memory mapping](https://en.wikipedia.org/wiki/Memory-mapped_file)
 to allow partial loading of the tree, while supporting the existing RadixDB file format.
 
+## Data Integrity
+
+RadixDB ensures data integrity using two [IEEE CRC32](https://en.wikipedia.org/wiki/Cyclic_redundancy_check) checksum mechanisms. 
+
+The in-memory tree checksum verifies the integrity of the Radix tree during
+runtime operations. It detects potential corruption or tampering of the tree
+structure by enforcing checksum verification on read and write operations.
+
+The storage checksum verifies the integrity of the database file and detects
+any corruption or tampering that might occur at the filesystem level.
+
+Both checksum types are calculated across all nodes in the Radix tree, providing
+comprehensive coverage of the entire database structure.
+
 ## Contributing
 
 Contributions of any kind are welcome.
