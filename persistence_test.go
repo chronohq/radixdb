@@ -2,6 +2,7 @@ package radixdb
 
 import (
 	"encoding/binary"
+	"fmt"
 	"hash/crc32"
 	"testing"
 	"time"
@@ -62,5 +63,44 @@ func TestUpdateHeaderChecksum(t *testing.T) {
 
 	if got != want {
 		t.Errorf("checksum mismatch, got:%d, want:%d", got, want)
+	}
+}
+
+func TestBuildOffsetTable(t *testing.T) {
+	rdb := basicTestTree()
+
+	offsetTable, err := rdb.buildOffsetTable()
+
+	if err != nil {
+		t.Fatalf("failed to build offset table: %v", err)
+	}
+
+	expectedOffset := fileHeaderSize()
+
+	err = rdb.traverse(func(current *node) error {
+		offsetInfo, found := offsetTable[current]
+
+		if !found {
+			return fmt.Errorf("missing offset: %q", current.key)
+		}
+
+		raw, _ := current.serialize()
+		nodeSize := len(raw)
+
+		if offsetInfo.offset != uint64(expectedOffset) {
+			return fmt.Errorf("incorrect offset (%q), got:%d, want:%d", current.key, offsetInfo.offset, expectedOffset)
+		}
+
+		if offsetInfo.size != uint64(nodeSize) {
+			return fmt.Errorf("unexpected node size, got:%d, want:%d", offsetInfo.size, nodeSize)
+		}
+
+		expectedOffset += nodeSize
+
+		return nil
+	})
+
+	if err != nil {
+		t.Errorf("invalid offset table: %v", err)
 	}
 }

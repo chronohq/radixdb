@@ -60,6 +60,12 @@ const (
 	headerChecksumOffset = magicByteLen + fileFormatVersion + reservedTotalLen + nodeCountLen + recordCountLen + createdAtLen + updatedAtLen
 )
 
+// nodeOffsetInfo holds the serialized offset and size of a node.
+type nodeOffset struct {
+	offset uint64 // Offset to the node in the file.
+	size   uint64 // Size of the raw node data.
+}
+
 type fileHeader []byte
 
 // fileHeaderSize returns the total size of the binary header of the database
@@ -174,4 +180,36 @@ func (fh fileHeader) updateChecksum() {
 	h.Write(fh[:headerChecksumOffset])
 
 	binary.LittleEndian.PutUint32(fh[headerChecksumOffset:], h.Sum32())
+}
+
+// buildOffsetTable builds a map of node pointers to their offsets within the
+// file. Offsets are determined by traversing the tree in depth-first search
+// order. The function returns an error if node serialization fails.
+func (rdb *RadixDB) buildOffsetTable() (map[*node]nodeOffset, error) {
+	offsetTable := make(map[*node]nodeOffset)
+
+	// Start at the end of the file header region.
+	currentOffset := uint64(fileHeaderSize())
+
+	err := rdb.traverse(func(current *node) error {
+		// TODO(toru): There is no need to do full node serialization.
+		// Write a function that computes the node size without serializing.
+		rawNode, err := current.serialize()
+
+		if err != nil {
+			return nil
+		}
+
+		nodeSize := uint64(len(rawNode))
+		offsetTable[current] = nodeOffset{offset: currentOffset, size: nodeSize}
+		currentOffset += nodeSize
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return offsetTable, nil
 }
