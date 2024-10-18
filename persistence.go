@@ -47,14 +47,17 @@ const (
 	// headerChecsumLen represents the size of the checksum in bytes.
 	headerChecksumLen = sizeOfUint32
 
+	// reservedTotalLen represents the total size of the reserved region.
+	reservedTotalLen = sizeOfUint8 + sizeOfUint8
+
 	// createdAtOffset represents the starting position of the createdAt field.
-	createdAtOffset = magicByteLen + fileFormatVersion + nodeCountLen + recordCountLen
+	createdAtOffset = magicByteLen + fileFormatVersion + reservedTotalLen + nodeCountLen + recordCountLen
 
 	// updatedAtOffset represents the starting position of the updatedAt field.
-	updatedAtOffset = magicByteLen + fileFormatVersion + nodeCountLen + recordCountLen + createdAtLen
+	updatedAtOffset = magicByteLen + fileFormatVersion + reservedTotalLen + nodeCountLen + recordCountLen + createdAtLen
 
-	// headerChecksumOffset
-	headerChecksumOffset = magicByteLen + fileFormatVersion + nodeCountLen + recordCountLen + createdAtLen + updatedAtLen
+	// headerChecksumOffset represents the starting position of the checksum field.
+	headerChecksumOffset = magicByteLen + fileFormatVersion + reservedTotalLen + nodeCountLen + recordCountLen + createdAtLen + updatedAtLen
 )
 
 type fileHeader []byte
@@ -64,6 +67,7 @@ type fileHeader []byte
 func fileHeaderSize() int {
 	return magicByteLen +
 		fileFormatVersionLen +
+		reservedTotalLen +
 		nodeCountLen +
 		recordCountLen +
 		createdAtLen +
@@ -72,11 +76,40 @@ func fileHeaderSize() int {
 }
 
 // newFileHeader returns a new binary header for the database file.
+// Non predetermined values are initially set to zero.
 func newFileHeader() fileHeader {
+	// Expected binary format of the file header:
+	//     0               1               2               3
+	//     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+	//    +---------------+---------------+---------------+---------------+
+	//  0 | Magic ('R')   | Version       | Reserverd     | Reserved      |
+	//    +---------------+---------------+---------------+---------------+
+	//  4 | Node Count                                                    |
+	//    +                                                               +
+	//  8 |                                                               |
+	//    +---------------+---------------+---------------+---------------+
+	// 12 | Record Count                                                  |
+	//    +                                                               +
+	// 16 |                                                               |
+	//    +---------------+---------------+---------------+---------------+
+	// 20 | Creation Timestamp                                            |
+	//    +                                                               +
+	// 24 |                                                               |
+	//    +---------------+---------------+---------------+---------------+
+	// 28 | Update Timestamp                                              |
+	//    +                                                               +
+	// 32 |                                                               |
+	//    +---------------+---------------+---------------+---------------+
+	// 36 | Checksum                                                      |
+	//    +---------------+---------------+---------------+---------------+
 	var buf bytes.Buffer
 
 	buf.WriteByte(magicByte)
 	buf.WriteByte(fileFormatVersion)
+
+	// Reserve space for future use.
+	buf.WriteByte(byte(0)) // reserved
+	buf.WriteByte(byte(0)) // reserved
 
 	// Reserve space for numNodes and numRecords.
 	binary.Write(&buf, binary.LittleEndian, uint64(0)) // nodeCount
