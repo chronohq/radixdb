@@ -22,6 +22,15 @@ var (
 	ErrNilKey = errors.New("key cannot be nil")
 )
 
+const (
+	// Length of the record value hash in bytes.
+	valueHashLen = 32
+)
+
+// blobID is a 32-byte fixed length byte array representing the SHA-256 hash of
+// a record value. It is an array instead of a slice for map key compatibility.
+type blobID [valueHashLen]byte
+
 // RadixDB represents an in-memory Radix tree, providing concurrency-safe read
 // and write APIs. It maintains a reference to the root node and tracks various
 // metadata such as the total number of nodes.
@@ -31,11 +40,18 @@ type RadixDB struct {
 	numRecords uint64       // Number of records in the tree.
 	mu         sync.RWMutex // RWLock for concurrency management.
 	header     fileHeader   // Header region of the database file.
+
+	// Maps each SHA-256 hash of record values that are larger than
+	// 32-bytes to their corresponding unstructured value data.
+	blobStore map[blobID][]byte
 }
 
 // New initializes and returns a new instance of RadixDB.
 func New() *RadixDB {
-	ret := &RadixDB{}
+	ret := &RadixDB{
+		blobStore: map[blobID][]byte{},
+	}
+
 	ret.initFileHeader()
 
 	return ret

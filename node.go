@@ -15,6 +15,7 @@ type node struct {
 	key      []byte  // Path segment of the node.
 	value    []byte  // Data associated with this node, if any.
 	isRecord bool    // True if node is a record; false if path component.
+	isBlob   bool    // True if the value is stored in the blob store.
 	children []*node // Pointers to child nodes.
 	checksum uint32  // CRC32 checksum of the node content.
 }
@@ -109,9 +110,15 @@ func (n node) calculateChecksum() (uint32, error) {
 		return 0, err
 	}
 
-	// The isRecord field is equally as important as the key and value
-	// fields since an incorrect value means a corrupt tree.
+	// Include the isRecord field.
 	if n.isRecord {
+		h.Write([]byte{1})
+	} else {
+		h.Write([]byte{0})
+	}
+
+	// Include the isBlob field.
+	if n.isBlob {
 		h.Write([]byte{1})
 	} else {
 		h.Write([]byte{0})
