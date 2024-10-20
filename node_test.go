@@ -306,6 +306,54 @@ func TestPrependKey(t *testing.T) {
 	}
 }
 
+func TestSetValue(t *testing.T) {
+	tests := []struct {
+		key           []byte
+		value         []byte
+		isBlob        bool
+		blobStoreSize int
+	}{
+		{[]byte("apple"), []byte("sauce"), false, 0},
+		{[]byte("banana"), make([]byte, 33), true, 1},
+	}
+
+	rdb := New()
+
+	for _, test := range tests {
+		n := &node{}
+		n.setKey(test.key)
+		n.setValue(rdb.blobs, test.value)
+
+		if n.isBlob != test.isBlob {
+			t.Errorf("unexpected isBlob, got:%t, want:%t", n.isBlob, test.isBlob)
+		}
+
+		if len(rdb.blobs) != test.blobStoreSize {
+			t.Errorf("unexpected blobStore size, got:%d, want:%d", len(rdb.blobs), test.blobStoreSize)
+		}
+
+		// Test that the blobID is stored in the value slice.
+		if test.isBlob {
+			blobID, err := buildBlobID(n.value)
+
+			if err != nil {
+				t.Errorf("failed to buildBlobID: %v", err)
+			}
+
+			val, found := rdb.blobs[blobID]
+
+			if !found {
+				t.Error("cound not find blob")
+				return
+			}
+
+			if !bytes.Equal(val, test.value) {
+				t.Errorf("value mismatch, got:%q, want:%q", val, test.value)
+			}
+		}
+	}
+}
+
 func TestSerialize(t *testing.T) {
 	subject := node{
 		key:      []byte("apple"),

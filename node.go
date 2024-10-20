@@ -2,6 +2,7 @@ package radixdb
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"hash/crc32"
 	"sort"
@@ -163,6 +164,7 @@ func (n node) verifyChecksum() bool {
 func (n *node) shallowCopyFrom(src *node) {
 	n.key = src.key
 	n.value = src.value
+	n.isBlob = src.isBlob
 	n.isRecord = src.isRecord
 	n.children = src.children
 
@@ -174,6 +176,19 @@ func (n *node) shallowCopyFrom(src *node) {
 func (n *node) setKey(key []byte) {
 	n.key = key
 	n.updateChecksum()
+}
+
+// setValue sets the given value to the node.
+func (n *node) setValue(blobs blobStore, value []byte) {
+	if len(value) <= inlineValueThreshold {
+		n.value = value
+		n.isBlob = false
+	} else {
+		k := blobID(sha256.Sum256(value))
+		n.value = k.toSlice()
+		n.isBlob = true
+		blobs[k] = value
+	}
 }
 
 // prependKey prepends the given prefix to the node's existing key.

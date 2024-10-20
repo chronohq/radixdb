@@ -11,6 +11,9 @@ var (
 	// key that already exists in the database.
 	ErrDuplicateKey = errors.New("cannot insert duplicate key")
 
+	// ErrInvalidBlobID is returned when an invalid blobID is detected.
+	ErrInvalidBlobID = errors.New("invalid blob id detected")
+
 	// ErrInvalidChecksum is returned when the checksum of a node does not match
 	// the expected value, indicating potential data corruption or tampering.
 	ErrInvalidChecksum = errors.New("checksum mismatch detected")
@@ -24,12 +27,14 @@ var (
 
 const (
 	// Length of the record value hash in bytes.
-	valueHashLen = 32
+	blobIDLen = 32
+
+	inlineValueThreshold = blobIDLen
 )
 
 // blobID is a 32-byte fixed length byte array representing the SHA-256 hash of
 // a record value. It is an array instead of a slice for map key compatibility.
-type blobID [valueHashLen]byte
+type blobID [blobIDLen]byte
 
 // blobStore maps blobIDs to their corresponding byte slices. This type is used
 // to store values that exceed the 32-byte length threshold.
@@ -90,11 +95,11 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 
 	newNode := &node{
 		key:      key,
-		value:    value,
 		isRecord: true,
 		children: []*node{},
 	}
 
+	newNode.setValue(rdb.blobs, value)
 	newNode.updateChecksum()
 
 	// The tree is empty: Simply set newNode as the root.
@@ -119,8 +124,8 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 			if current.isRecord {
 				return ErrDuplicateKey
 			} else {
-				current.value = value
 				current.isRecord = true
+				current.setValue(rdb.blobs, value)
 				current.updateChecksum()
 
 				rdb.numRecords++
@@ -328,6 +333,17 @@ func (rdb *RadixDB) Delete(key []byte) error {
 	// Reaching here means that the node has multiple children. Because the
 	// children are guaranteed to share the node's key as their prefix, we
 	// can simply convert the node to a path compression node.
+	if node.isBlob {
+		blobID, err := buildBlobID(node.value)
+
+		if err != nil {
+			return err
+		}
+
+		delete(rdb.blobs, blobID)
+	}
+
+	node.isBlob = false
 	node.isRecord = false
 	node.value = nil
 	rdb.numRecords--
@@ -501,4 +517,23 @@ func (rdb *RadixDB) traverse(cb func(*node) error) error {
 // values and reserving space for future population.
 func (rdb *RadixDB) initFileHeader() {
 	rdb.header = newFileHeader()
+}
+
+// toSlice returns the given blobID as a byte slice.
+func (id blobID) toSlice() []byte {
+	return id[:]
+}
+
+// buildBlobID builds a blobID from the given byte slice. It requires that the
+// given byte slice length matches the blobID length (32-bytes).
+func buildBlobID(src []byte) (blobID, error) {
+	var ret blobID
+
+	if len(src) != blobIDLen {
+		return ret, ErrInvalidBlobID
+	}
+
+	copy(ret[:], src)
+
+	return ret, nil
 }
