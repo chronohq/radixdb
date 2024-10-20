@@ -31,6 +31,10 @@ const (
 // a record value. It is an array instead of a slice for map key compatibility.
 type blobID [valueHashLen]byte
 
+// blobStore maps blobIDs to their corresponding byte slices. This type is used
+// to store values that exceed the 32-byte length threshold.
+type blobStore map[blobID][]byte
+
 // RadixDB represents an in-memory Radix tree, providing concurrency-safe read
 // and write APIs. It maintains a reference to the root node and tracks various
 // metadata such as the total number of nodes.
@@ -43,13 +47,13 @@ type RadixDB struct {
 
 	// Maps each SHA-256 hash of record values that are larger than
 	// 32-bytes to their corresponding unstructured value data.
-	blobStore map[blobID][]byte
+	blobs blobStore
 }
 
 // New initializes and returns a new instance of RadixDB.
 func New() *RadixDB {
 	ret := &RadixDB{
-		blobStore: map[blobID][]byte{},
+		blobs: map[blobID][]byte{},
 	}
 
 	ret.initFileHeader()
