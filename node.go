@@ -2,7 +2,6 @@ package radixdb
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"hash/crc32"
 	"sort"
@@ -12,13 +11,19 @@ import (
 // is designed to be memory-efficient by using a minimal set of fields to
 // represent each node. In a Radix tree, the node's key inherently carries
 // significant information, hence reducing the need to maintain metadata.
+// Adding fields to this struct can significantly increase memory overhead.
+// Think carefully before adding anything to the struct.
 type node struct {
 	key      []byte  // Path segment of the node.
-	value    []byte  // Data associated with this node, if any.
 	isRecord bool    // True if node is a record; false if path component.
 	isBlob   bool    // True if the value is stored in the blob store.
 	children []*node // Pointers to child nodes.
 	checksum uint32  // CRC32 checksum of the node content.
+
+	// Holds the content of the node. Values less than or equal to 32-bytes
+	// are stored directly in this byte slice. Otherwise, it holds the blobID
+	// that points to the content in the blobStore.
+	data []byte
 }
 
 // hasChidren returns true if the receiver node has children.
@@ -29,6 +34,24 @@ func (n node) hasChildren() bool {
 // isLeaf returns true if the receiver node is a leaf node.
 func (n node) isLeaf() bool {
 	return len(n.children) == 0
+}
+
+// value retrieves the record value of the node. If the value is stored in the
+// blobStore, it fetches the value using the blobID stored in the data field.
+func (n node) value(blobs blobStore) []byte {
+	ret := n.data
+
+	if n.isBlob {
+		blobID, err := buildBlobID(n.data)
+
+		if err != nil {
+			return nil
+		}
+
+		ret = blobs.getValue(blobID)
+	}
+
+	return ret
 }
 
 // findCompatibleChild searches through the child nodes of the receiver node.
@@ -107,7 +130,7 @@ func (n node) calculateChecksum() (uint32, error) {
 		return 0, err
 	}
 
-	if _, err := h.Write(n.value); err != nil {
+	if _, err := h.Write(n.data); err != nil {
 		return 0, err
 	}
 
@@ -163,7 +186,7 @@ func (n node) verifyChecksum() bool {
 // is intended for cases where sustaining the receiver's address is necessary.
 func (n *node) shallowCopyFrom(src *node) {
 	n.key = src.key
-	n.value = src.value
+	n.data = src.data
 	n.isBlob = src.isBlob
 	n.isRecord = src.isRecord
 	n.children = src.children
@@ -181,13 +204,12 @@ func (n *node) setKey(key []byte) {
 // setValue sets the given value to the node.
 func (n *node) setValue(blobs blobStore, value []byte) {
 	if len(value) <= inlineValueThreshold {
-		n.value = value
+		n.data = value
 		n.isBlob = false
 	} else {
-		k := blobID(sha256.Sum256(value))
-		n.value = k.toSlice()
+		id := blobs.put(value)
+		n.data = id.toSlice()
 		n.isBlob = true
-		blobs[k] = value
 	}
 }
 
@@ -233,14 +255,14 @@ func (n node) serialize() ([]byte, error) {
 
 	// Step 3: Serialize the value and its length, if the node holds a record.
 	if n.isRecord {
-		valLen := uint64(len(n.value))
+		valLen := uint64(len(n.data))
 
 		if err := binary.Write(&buf, binary.LittleEndian, valLen); err != nil {
 			return nil, err
 		}
 
 		if valLen > 0 {
-			if _, err := buf.Write(n.value); err != nil {
+			if _, err := buf.Write(n.data); err != nil {
 				return nil, err
 			}
 		}

@@ -20,8 +20,8 @@ func printTree(node *node, prefix string, isLast bool, isRoot bool, treeSize uin
 
 	var val string
 
-	if node.value != nil {
-		val = string(node.value)
+	if node.data != nil {
+		val = string(node.data)
 	} else {
 		val = "<nil>"
 	}

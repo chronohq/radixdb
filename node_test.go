@@ -262,7 +262,7 @@ func TestRemoveChild(t *testing.T) {
 func TestUpdateChecksum(t *testing.T) {
 	n := &node{
 		key:      []byte("apple"),
-		value:    []byte("sauce"),
+		data:     []byte("sauce"),
 		isRecord: true,
 	}
 
@@ -334,21 +334,21 @@ func TestSetValue(t *testing.T) {
 
 		// Test that the blobID is stored in the value slice.
 		if test.isBlob {
-			blobID, err := buildBlobID(n.value)
+			blobID, err := buildBlobID(n.data)
 
 			if err != nil {
 				t.Errorf("failed to buildBlobID: %v", err)
 			}
 
-			val, found := rdb.blobs[blobID]
+			blob, found := rdb.blobs[blobID]
 
 			if !found {
 				t.Error("cound not find blob")
 				return
 			}
 
-			if !bytes.Equal(val, test.value) {
-				t.Errorf("value mismatch, got:%q, want:%q", val, test.value)
+			if !bytes.Equal(blob.value, test.value) {
+				t.Errorf("value mismatch, got:%q, want:%q", blob.value, test.value)
 			}
 		}
 	}
@@ -357,7 +357,7 @@ func TestSetValue(t *testing.T) {
 func TestSerialize(t *testing.T) {
 	subject := node{
 		key:      []byte("apple"),
-		value:    []byte("sauce"),
+		data:     []byte("sauce"),
 		isRecord: true,
 		children: nil,
 	}
@@ -415,7 +415,7 @@ func TestSerialize(t *testing.T) {
 		t.Fatalf("failed to read value length: %v", err)
 	}
 
-	if want := uint64(len(subject.value)); want != valLen {
+	if want := uint64(len(subject.data)); want != valLen {
 		t.Errorf("unexpected value length, got:%d, want:%d", valLen, want)
 	}
 
@@ -425,8 +425,8 @@ func TestSerialize(t *testing.T) {
 		t.Fatalf("failed to read value data: %v", err)
 	}
 
-	if !bytes.Equal(valData, subject.value) {
-		t.Errorf("unexpected value data, got:%q, want:%q", valData, subject.value)
+	if !bytes.Equal(valData, subject.data) {
+		t.Errorf("unexpected value data, got:%q, want:%q", valData, subject.data)
 	}
 
 	// Reconstruct the child count.
@@ -451,7 +451,7 @@ func TestSerialize(t *testing.T) {
 	{
 		subject := node{
 			key:      []byte("banana"),
-			value:    []byte("smoothie"),
+			data:     []byte("smoothie"),
 			isRecord: true,
 			children: nil,
 		}

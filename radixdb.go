@@ -26,19 +26,8 @@ var (
 )
 
 const (
-	// Length of the record value hash in bytes.
-	blobIDLen = 32
-
 	inlineValueThreshold = blobIDLen
 )
-
-// blobID is a 32-byte fixed length byte array representing the SHA-256 hash of
-// a record value. It is an array instead of a slice for map key compatibility.
-type blobID [blobIDLen]byte
-
-// blobStore maps blobIDs to their corresponding byte slices. This type is used
-// to store values that exceed the 32-byte length threshold.
-type blobStore map[blobID][]byte
 
 // RadixDB represents an in-memory Radix tree, providing concurrency-safe read
 // and write APIs. It maintains a reference to the root node and tracks various
@@ -58,7 +47,7 @@ type RadixDB struct {
 // New initializes and returns a new instance of RadixDB.
 func New() *RadixDB {
 	ret := &RadixDB{
-		blobs: map[blobID][]byte{},
+		blobs: map[blobID]*blobStoreEntry{},
 	}
 
 	ret.initFileHeader()
@@ -237,7 +226,7 @@ func (rdb *RadixDB) Get(key []byte) ([]byte, error) {
 		return nil, ErrInvalidChecksum
 	}
 
-	return node.value, nil
+	return node.value(rdb.blobs), nil
 }
 
 // Delete removes the node that matches the given key.
@@ -334,18 +323,12 @@ func (rdb *RadixDB) Delete(key []byte) error {
 	// children are guaranteed to share the node's key as their prefix, we
 	// can simply convert the node to a path compression node.
 	if node.isBlob {
-		blobID, err := buildBlobID(node.value)
-
-		if err != nil {
-			return err
-		}
-
-		delete(rdb.blobs, blobID)
+		// TODO(toru): Implement blobStore.release() and call it here.
 	}
 
 	node.isBlob = false
 	node.isRecord = false
-	node.value = nil
+	node.data = nil
 	rdb.numRecords--
 
 	return nil
@@ -517,23 +500,4 @@ func (rdb *RadixDB) traverse(cb func(*node) error) error {
 // values and reserving space for future population.
 func (rdb *RadixDB) initFileHeader() {
 	rdb.header = newFileHeader()
-}
-
-// toSlice returns the given blobID as a byte slice.
-func (id blobID) toSlice() []byte {
-	return id[:]
-}
-
-// buildBlobID builds a blobID from the given byte slice. It requires that the
-// given byte slice length matches the blobID length (32-bytes).
-func buildBlobID(src []byte) (blobID, error) {
-	var ret blobID
-
-	if len(src) != blobIDLen {
-		return ret, ErrInvalidBlobID
-	}
-
-	copy(ret[:], src)
-
-	return ret, nil
 }
