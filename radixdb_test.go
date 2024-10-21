@@ -736,6 +736,52 @@ func TestDelete(t *testing.T) {
 			t.Errorf("expected (%q) to be a leaf node", rightNode.key)
 		}
 	}
+
+	// Test blobStore consistency.
+	{
+		rdb := New()
+
+		value := []byte("a72ebf0e369e5941e8c96faaa1a7a5756db9d6769f646958dc20f7b25c8a6915ced4913b")
+
+		rdb.Insert([]byte("k1"), value)
+		rdb.Insert([]byte("k2"), value)
+		rdb.Insert([]byte("k3"), value)
+
+		// Test that the blobStore had not stored duplicate data.
+		if len(rdb.blobs) != 1 {
+			t.Errorf("unexpected blobStore size, got:%d, want:3", len(rdb.blobs))
+		}
+
+		blobID, err := buildBlobID(rdb.root.children[0].data)
+
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			return
+		}
+
+		blob := rdb.blobs[blobID]
+
+		if blob.refCount != 3 {
+			t.Errorf("unexpected refCount, got:%d, want:3", blob.refCount)
+			return
+		}
+
+		rdb.Delete([]byte("k1"))
+		rdb.Delete([]byte("k2"))
+
+		if blob.refCount != 1 {
+			t.Errorf("unexpected blob refCount, got:%d, want:1", blob.refCount)
+		}
+
+		rdb.Delete([]byte("k3"))
+
+		// Test that the blob had been deleted from the blobStore.
+		_, found := rdb.blobs[blobID]
+
+		if found {
+			t.Errorf("blob expected to be deleted from the blobStore: %v", blobID)
+		}
+	}
 }
 
 func TestClear(t *testing.T) {

@@ -264,6 +264,17 @@ func (rdb *RadixDB) Delete(key []byte) error {
 
 			rdb.numRecords--
 
+			// Inform the blobStore if the deleted node had carried a blob.
+			if node.isBlob {
+				blobID, err := buildBlobID(node.data)
+
+				if err != nil {
+					return err
+				}
+
+				rdb.blobs.release(blobID)
+			}
+
 			// If the deletion had left the parent node with only one child,
 			// it means that the child can take its place in the tree.
 			if len(parent.children) == 1 {
@@ -323,7 +334,11 @@ func (rdb *RadixDB) Delete(key []byte) error {
 	// children are guaranteed to share the node's key as their prefix, we
 	// can simply convert the node to a path compression node.
 	if node.isBlob {
-		// TODO(toru): Implement blobStore.release() and call it here.
+		if id, err := buildBlobID(node.data); err != nil {
+			return err
+		} else {
+			rdb.blobs.release(id)
+		}
 	}
 
 	node.isBlob = false
@@ -354,6 +369,7 @@ func (rdb *RadixDB) clear() {
 	rdb.root = nil
 	rdb.numNodes = 0
 	rdb.numRecords = 0
+	rdb.blobs = make(blobStore)
 }
 
 // splitNode divides a node into two nodes based on a common prefix, creating
