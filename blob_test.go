@@ -37,3 +37,33 @@ func TestBlobStorePut(t *testing.T) {
 		}
 	}
 }
+
+func TestBlobStoreRelease(t *testing.T) {
+	store := blobStore{}
+	value := []byte("pineapple")
+	iterations := 20
+
+	var id blobID
+
+	for i := 0; i < iterations; i++ {
+		id = store.put(value)
+	}
+
+	for i := iterations; i > 0; i-- {
+		store.release(id)
+
+		expectedRefCount := i - 1
+
+		// The blob should no longer exist.
+		if expectedRefCount == 0 {
+			if _, found := store[id]; found {
+				t.Error("expected blob to be removed")
+				return
+			}
+		} else {
+			if store[id].refCount != expectedRefCount {
+				t.Errorf("unexpected refCount, got:%d, want:%d", store[id].refCount, expectedRefCount)
+			}
+		}
+	}
+}

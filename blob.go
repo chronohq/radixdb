@@ -71,3 +71,17 @@ func (b blobStore) put(value []byte) blobID {
 
 	return k
 }
+
+// release decrements the refCount of a blob that matches the given blobID.
+// If the refCount reaches zero, the blob is removed from the blobStore.
+func (b blobStore) release(id blobID) {
+	if blob, found := b[id]; found {
+		if blob.refCount > 0 {
+			blob.refCount--
+		}
+
+		if blob.refCount == 0 {
+			delete(b, id)
+		}
+	}
+}
