@@ -38,6 +38,15 @@ const (
 	// recordCountLen represents the size of recordCount in bytes.
 	recordCountLen = sizeOfUint64
 
+	// blobCountLen represents the size of blobCount in bytes.
+	blobCountLen = sizeOfUint64
+
+	// radixTreeOffsetLen represents the size of radixTreeOffset in bytes.
+	radixTreeOffsetLen = sizeOfUint64
+
+	// blobStoreOffsetLen represents the size of blobStoreOffset in bytes.
+	blobStoreOffsetLen = sizeOfUint64
+
 	// createdAtLen represents the size of createdAt in bytes.
 	createdAtLen = sizeOfUint64
 
@@ -51,13 +60,13 @@ const (
 	reservedTotalLen = sizeOfUint8 + sizeOfUint8
 
 	// createdAtOffset represents the starting position of the createdAt field.
-	createdAtOffset = magicByteLen + fileFormatVersion + reservedTotalLen + nodeCountLen + recordCountLen
+	createdAtOffset = magicByteLen + fileFormatVersion + reservedTotalLen + nodeCountLen + recordCountLen + blobCountLen + radixTreeOffsetLen + blobStoreOffsetLen
 
 	// updatedAtOffset represents the starting position of the updatedAt field.
-	updatedAtOffset = magicByteLen + fileFormatVersion + reservedTotalLen + nodeCountLen + recordCountLen + createdAtLen
+	updatedAtOffset = magicByteLen + fileFormatVersion + reservedTotalLen + nodeCountLen + recordCountLen + blobCountLen + radixTreeOffsetLen + blobStoreOffsetLen + createdAtLen
 
 	// headerChecksumOffset represents the starting position of the checksum field.
-	headerChecksumOffset = magicByteLen + fileFormatVersion + reservedTotalLen + nodeCountLen + recordCountLen + createdAtLen + updatedAtLen
+	headerChecksumOffset = magicByteLen + fileFormatVersion + reservedTotalLen + nodeCountLen + recordCountLen + blobCountLen + radixTreeOffsetLen + blobStoreOffsetLen + createdAtLen + updatedAtLen
 )
 
 // nodeOffsetInfo holds the serialized offset and size of a node.
@@ -76,6 +85,9 @@ func fileHeaderSize() int {
 		reservedTotalLen +
 		nodeCountLen +
 		recordCountLen +
+		blobCountLen +
+		radixTreeOffsetLen +
+		blobStoreOffsetLen +
 		createdAtLen +
 		updatedAtLen +
 		headerChecksumLen
@@ -98,15 +110,27 @@ func newFileHeader() fileHeader {
 	//    +                                                               +
 	// 16 |                                                               |
 	//    +---------------+---------------+---------------+---------------+
-	// 20 | Creation Timestamp                                            |
+	// 20 | Blob Count                                                    |
 	//    +                                                               +
 	// 24 |                                                               |
 	//    +---------------+---------------+---------------+---------------+
-	// 28 | Update Timestamp                                              |
+	// 28 | Radix Tree Offset                                             |
 	//    +                                                               +
 	// 32 |                                                               |
 	//    +---------------+---------------+---------------+---------------+
-	// 36 | Checksum                                                      |
+	// 36 | Blob Store Offset                                             |
+	//    +                                                               +
+	// 40 |                                                               |
+	//    +---------------+---------------+---------------+---------------+
+	// 44 | Creation Timestamp                                            |
+	//    +                                                               +
+	// 48 |                                                               |
+	//    +---------------+---------------+---------------+---------------+
+	// 52 | Update Timestamp                                              |
+	//    +                                                               +
+	// 56 |                                                               |
+	//    +---------------+---------------+---------------+---------------+
+	// 60 | Header Checksum                                               |
 	//    +---------------+---------------+---------------+---------------+
 	var buf bytes.Buffer
 
@@ -117,9 +141,14 @@ func newFileHeader() fileHeader {
 	buf.WriteByte(byte(0)) // reserved
 	buf.WriteByte(byte(0)) // reserved
 
-	// Reserve space for numNodes and numRecords.
+	// Reserve space for nodeCount, recordCount and blobCount.
 	binary.Write(&buf, binary.LittleEndian, uint64(0)) // nodeCount
 	binary.Write(&buf, binary.LittleEndian, uint64(0)) // recordCount
+	binary.Write(&buf, binary.LittleEndian, uint64(0)) // blobCount
+
+	// Reserve space for radixTreeOffset and blobStoreOffset.
+	binary.Write(&buf, binary.LittleEndian, uint64(0)) // radixTreeOffset
+	binary.Write(&buf, binary.LittleEndian, uint64(0)) // blobStoreOffset
 
 	// Reserve space for the createdAt and updatedAt timestamps.
 	binary.Write(&buf, binary.LittleEndian, uint64(0)) // createdAt
