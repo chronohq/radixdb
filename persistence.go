@@ -32,6 +32,9 @@ const (
 	// fileFormatVersionLen represents the size of fileFormatVersion in bytes.
 	fileFormatVersionLen = sizeOfUint8
 
+	// compressionAlgoLen represents the size of compressionAlgo in bytes.
+	compressionAlgoLen = sizeOfUint8
+
 	// nodeCountLen represents the size of nodeCount in bytes.
 	nodeCountLen = sizeOfUint64
 
@@ -57,7 +60,7 @@ const (
 	headerChecksumLen = sizeOfUint32
 
 	// reservedTotalLen represents the total size of the reserved region.
-	reservedTotalLen = sizeOfUint8 + sizeOfUint8
+	reservedTotalLen = sizeOfUint8
 
 	// createdAtOffset represents the starting position of the createdAt field.
 	createdAtOffset = magicByteLen + fileFormatVersion + reservedTotalLen + nodeCountLen + recordCountLen + blobCountLen + radixTreeOffsetLen + blobStoreOffsetLen
@@ -82,6 +85,7 @@ type fileHeader []byte
 func fileHeaderSize() int {
 	return magicByteLen +
 		fileFormatVersionLen +
+		compressionAlgoLen +
 		reservedTotalLen +
 		nodeCountLen +
 		recordCountLen +
@@ -100,7 +104,7 @@ func newFileHeader() fileHeader {
 	//     0               1               2               3
 	//     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
 	//    +---------------+---------------+---------------+---------------+
-	//  0 | Magic ('R')   | Version       | Reserverd     | Reserved      |
+	//  0 | Magic ('R')   | Version       | Compression   | Reserved      |
 	//    +---------------+---------------+---------------+---------------+
 	//  4 | Node Count                                                    |
 	//    +                                                               +
@@ -136,9 +140,9 @@ func newFileHeader() fileHeader {
 
 	buf.WriteByte(magicByte)
 	buf.WriteByte(fileFormatVersion)
+	buf.WriteByte(byte(0)) // compression
 
 	// Reserve space for future use.
-	buf.WriteByte(byte(0)) // reserved
 	buf.WriteByte(byte(0)) // reserved
 
 	// Reserve space for nodeCount, recordCount and blobCount.
