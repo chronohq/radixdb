@@ -3,7 +3,6 @@ package radixdb
 import (
 	"encoding/binary"
 	"fmt"
-	"hash/crc32"
 	"testing"
 	"time"
 )
@@ -58,10 +57,7 @@ func TestFileHeaderSerialize(t *testing.T) {
 	}
 
 	got := binary.LittleEndian.Uint32(buf[fileHeaderSize()-sizeOfUint32:])
-
-	h := crc32.NewIEEE()
-	h.Write(buf[:fileHeaderSize()-sizeOfUint32])
-	want := h.Sum32()
+	want, _ := calculateChecksum(buf[:fileHeaderSize()-sizeOfUint32])
 
 	if got != want {
 		t.Fatalf("invalid header checksum, got:%d, want:%d", got, want)

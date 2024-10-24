@@ -156,6 +156,7 @@ func (fh fileHeader) serialize() ([]byte, error) {
 	// 80 | Header Checksum                                               |
 	//    +---------------+---------------+---------------+---------------+
 	var buf bytes.Buffer
+	var err error
 
 	buf.WriteByte(fh.magic)
 	buf.WriteByte(fh.version)
@@ -176,13 +177,10 @@ func (fh fileHeader) serialize() ([]byte, error) {
 	binary.Write(&buf, binary.LittleEndian, uint64(fh.updatedAt.Unix()))
 
 	// Compute the CRC32 checksum of the header up until the checksum field.
-	h := crc32.NewIEEE()
-
-	if _, err := h.Write(buf.Bytes()); err != nil {
+	if fh.checksum, err = calculateChecksum(buf.Bytes()); err != nil {
 		return nil, err
 	}
 
-	fh.checksum = h.Sum32()
 	binary.Write(&buf, binary.LittleEndian, fh.checksum)
 
 	return buf.Bytes(), nil
@@ -218,4 +216,15 @@ func (rdb *RadixDB) buildOffsetTable() (map[*node]nodeOffset, error) {
 	}
 
 	return offsetTable, nil
+}
+
+// calculateChecksum returns the CRC32 checksum of the given byte slice.
+func calculateChecksum(src []byte) (uint32, error) {
+	h := crc32.NewIEEE()
+
+	if _, err := h.Write(src); err != nil {
+		return 0, err
+	}
+
+	return h.Sum32(), nil
 }
