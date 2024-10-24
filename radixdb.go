@@ -47,10 +47,12 @@ type RadixDB struct {
 // New initializes and returns a new instance of RadixDB.
 func New() *RadixDB {
 	ret := &RadixDB{
+		header: fileHeader{
+			magic:   magicByte,
+			version: fileFormatVersion,
+		},
 		blobs: map[blobID]*blobStoreEntry{},
 	}
-
-	ret.initFileHeader()
 
 	return ret
 }
@@ -510,10 +512,4 @@ func (rdb *RadixDB) traverse(cb func(*node) error) error {
 	}
 
 	return nil
-}
-
-// initFileHeader initializes the file header for RadixDB, setting up initial
-// values and reserving space for future population.
-func (rdb *RadixDB) initFileHeader() {
-	rdb.header = newFileHeader()
 }
