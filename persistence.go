@@ -67,24 +67,6 @@ const (
 
 	// reservedTotalLen represents the total size of the reserved region.
 	reservedTotalLen = sizeOfUint8
-
-	// createdAtOffset represents the starting position of the createdAt field.
-	createdAtOffset = magicByteLen +
-		fileFormatVersion +
-		reservedTotalLen +
-		nodeCountLen +
-		recordCountLen +
-		blobCountLen +
-		radixTreeOffsetLen +
-		radixTreeSizeLen +
-		blobStoreOffsetLen +
-		blobStoreSizeLen
-
-	// updatedAtOffset represents the starting position of the updatedAt field.
-	updatedAtOffset = createdAtOffset + createdAtLen
-
-	// headerChecksumOffset represents the starting position of the checksum field.
-	headerChecksumOffset = updatedAtOffset + updatedAtLen
 )
 
 // nodeOffsetInfo holds the serialized offset and size of a node.
@@ -93,7 +75,21 @@ type nodeOffset struct {
 	size   uint64 // Size of the raw node data.
 }
 
-type fileHeader []byte
+type fileHeader struct {
+	magic           byte
+	version         byte
+	compressionAlgo byte
+	nodeCount       uint64
+	recordCount     uint64
+	blobCount       uint64
+	radixTreeOffset uint64
+	radixTreeSize   uint64
+	blobStoreOffset uint64
+	blobStoreSize   uint64
+	createdAt       time.Time
+	updatedAt       time.Time
+	checksum        uint32
+}
 
 // fileHeaderSize returns the total size of the binary header of the database
 // file. The size is returned as an int representing the total number of bytes.
@@ -114,9 +110,7 @@ func fileHeaderSize() int {
 		headerChecksumLen
 }
 
-// newFileHeader returns a new binary header for the database file.
-// Non predetermined values are initially set to zero.
-func newFileHeader() fileHeader {
+func (fh fileHeader) serialize() ([]byte, error) {
 	// Expected binary format of the file header:
 	//     0               1               2               3
 	//     0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
@@ -163,85 +157,35 @@ func newFileHeader() fileHeader {
 	//    +---------------+---------------+---------------+---------------+
 	var buf bytes.Buffer
 
-	buf.WriteByte(magicByte)
-	buf.WriteByte(fileFormatVersion)
-	buf.WriteByte(byte(0)) // compression
+	buf.WriteByte(fh.magic)
+	buf.WriteByte(fh.version)
+	buf.WriteByte(fh.compressionAlgo)
+	buf.WriteByte(byte(0)) // reserved space
 
-	// Reserve space for future use.
-	buf.WriteByte(byte(0)) // reserved
+	binary.Write(&buf, binary.LittleEndian, fh.nodeCount)
+	binary.Write(&buf, binary.LittleEndian, fh.recordCount)
+	binary.Write(&buf, binary.LittleEndian, fh.blobCount)
 
-	// Reserve space for nodeCount, recordCount and blobCount.
-	binary.Write(&buf, binary.LittleEndian, uint64(0)) // nodeCount
-	binary.Write(&buf, binary.LittleEndian, uint64(0)) // recordCount
-	binary.Write(&buf, binary.LittleEndian, uint64(0)) // blobCount
+	binary.Write(&buf, binary.LittleEndian, fh.radixTreeOffset)
+	binary.Write(&buf, binary.LittleEndian, fh.radixTreeSize)
 
-	// Reserve space for the radix tree.
-	binary.Write(&buf, binary.LittleEndian, uint64(0)) // radixTreeOffset
-	binary.Write(&buf, binary.LittleEndian, uint64(0)) // radixTreeSize
+	binary.Write(&buf, binary.LittleEndian, fh.blobStoreOffset)
+	binary.Write(&buf, binary.LittleEndian, fh.blobStoreSize)
 
-	// Reserver space for the blobStore.
-	binary.Write(&buf, binary.LittleEndian, uint64(0)) // blobStoreOffset
-	binary.Write(&buf, binary.LittleEndian, uint64(0)) // blobStoreSize
+	binary.Write(&buf, binary.LittleEndian, uint64(fh.createdAt.Unix()))
+	binary.Write(&buf, binary.LittleEndian, uint64(fh.updatedAt.Unix()))
 
-	// Reserve space for the createdAt and updatedAt timestamps.
-	binary.Write(&buf, binary.LittleEndian, uint64(0)) // createdAt
-	binary.Write(&buf, binary.LittleEndian, uint64(0)) // updatedAt
-
-	// Reserve space for the CRC32 header checksum.
-	binary.Write(&buf, binary.LittleEndian, uint32(0)) // checksum
-
-	return buf.Bytes()
-}
-
-// setCreatedAt updates the createdAt field in the fileHeader. It writes
-// the given time as a uint64 Unix timestamp in little-endian byte order.
-func (fh fileHeader) setCreatedAt(t time.Time) {
-	ts := uint64(t.Unix())
-	binary.LittleEndian.PutUint64(fh[createdAtOffset:], ts)
-}
-
-// setUpdatedAt updates the updatedAt field in the fileHeader. It writes
-// the given time as a uint64 Unix timestamp in little-endian byte order.
-func (fh fileHeader) setUpdatedAt(t time.Time) {
-	ts := uint64(t.Unix())
-	binary.LittleEndian.PutUint64(fh[updatedAtOffset:], ts)
-}
-
-// getCreatedAt decodes the createdAt field in the fileHeader, and returns
-// it as Go's standard time.Time value.
-func (fh fileHeader) getCreatedAt() (time.Time, error) {
-	var ts uint64
-
-	buf := bytes.NewReader(fh[createdAtOffset:])
-
-	if err := binary.Read(buf, binary.LittleEndian, &ts); err != nil {
-		return time.Time{}, err
-	}
-
-	return time.Unix(int64(ts), 0), nil
-}
-
-// getUpdatedAt decodes the updatedAt field in the fileHeader, and returns
-// it as Go's standard time.Time value.
-func (fh fileHeader) getUpdatedAt() (time.Time, error) {
-	var ts uint64
-
-	buf := bytes.NewReader(fh[updatedAtOffset:])
-
-	if err := binary.Read(buf, binary.LittleEndian, &ts); err != nil {
-		return time.Time{}, err
-	}
-
-	return time.Unix(int64(ts), 0), nil
-}
-
-// updateChecksum computes and updates the header checksum using CRC32.
-func (fh fileHeader) updateChecksum() {
+	// Compute the CRC32 checksum of the header up until the checksum field.
 	h := crc32.NewIEEE()
 
-	h.Write(fh[:headerChecksumOffset])
+	if _, err := h.Write(buf.Bytes()); err != nil {
+		return nil, err
+	}
 
-	binary.LittleEndian.PutUint32(fh[headerChecksumOffset:], h.Sum32())
+	fh.checksum = h.Sum32()
+	binary.Write(&buf, binary.LittleEndian, fh.checksum)
+
+	return buf.Bytes(), nil
 }
 
 // buildOffsetTable builds a map of node pointers to their offsets within the
