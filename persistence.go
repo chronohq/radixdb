@@ -44,17 +44,17 @@ const (
 	// blobCountLen represents the size of blobCount in bytes.
 	blobCountLen = sizeOfUint64
 
-	// radixTreeOffsetLen represents the size of radixTreeOffset in bytes.
-	radixTreeOffsetLen = sizeOfUint64
+	// radixIndexOffsetLen represents the size of radixIndexOffset in bytes.
+	radixIndexOffsetLen = sizeOfUint64
 
-	// radixTreeSizeLen represents the size of the serialized radix tree in bytes.
-	radixTreeSizeLen = sizeOfUint64
+	// radixIndexSizeLen represents the size of the serialized radix index in bytes.
+	radixIndexSizeLen = sizeOfUint64
 
-	// blobStoreOffsetLen represents the size of blobStoreOffset in bytes.
-	blobStoreOffsetLen = sizeOfUint64
+	// blobIndexOffsetLen represents the size of blobIndexOffset in bytes.
+	blobIndexOffsetLen = sizeOfUint64
 
-	// blobStoreSizeLen represents the size of the serialized blobStore in bytes.
-	blobStoreSizeLen = sizeOfUint64
+	// blobIndexSizeLen represents the size of the serialized blob index in bytes.
+	blobIndexSizeLen = sizeOfUint64
 
 	// createdAtLen represents the size of createdAt in bytes.
 	createdAtLen = sizeOfUint64
@@ -76,19 +76,19 @@ type nodeOffset struct {
 }
 
 type fileHeader struct {
-	magic           byte
-	version         byte
-	compressionAlgo byte
-	nodeCount       uint64
-	recordCount     uint64
-	blobCount       uint64
-	radixTreeOffset uint64
-	radixTreeSize   uint64
-	blobStoreOffset uint64
-	blobStoreSize   uint64
-	createdAt       time.Time
-	updatedAt       time.Time
-	checksum        uint32
+	magic            byte
+	version          byte
+	compressionAlgo  byte
+	nodeCount        uint64
+	recordCount      uint64
+	blobCount        uint64
+	radixIndexOffset uint64
+	radixIndexSize   uint64
+	blobIndexOffset  uint64
+	blobIndexSize    uint64
+	createdAt        time.Time
+	updatedAt        time.Time
+	checksum         uint32
 }
 
 // fileHeaderSize returns the total size of the binary header of the database
@@ -101,10 +101,10 @@ func fileHeaderSize() int {
 		nodeCountLen +
 		recordCountLen +
 		blobCountLen +
-		radixTreeOffsetLen +
-		radixTreeSizeLen +
-		blobStoreOffsetLen +
-		blobStoreSizeLen +
+		radixIndexOffsetLen +
+		radixIndexSizeLen +
+		blobIndexOffsetLen +
+		blobIndexSizeLen +
 		createdAtLen +
 		updatedAtLen +
 		headerChecksumLen
@@ -129,19 +129,19 @@ func (fh fileHeader) serialize() ([]byte, error) {
 	//    +                                                               +
 	// 24 |                                                               |
 	//    +---------------+---------------+---------------+---------------+
-	// 28 | Radix Tree Offset                                             |
+	// 28 | Radix Index Offset                                            |
 	//    +                                                               +
 	// 32 |                                                               |
 	//    +---------------+---------------+---------------+---------------+
-	// 36 | Radix Tree Size                                               |
+	// 36 | Radix Index Size                                              |
 	//    +                                                               +
 	// 40 |                                                               |
 	//    +---------------+---------------+---------------+---------------+
-	// 44 | Blob Store Offset                                             |
+	// 44 | Blob Index Offset                                             |
 	//    +                                                               +
 	// 48 |                                                               |
 	//    +---------------+---------------+---------------+---------------+
-	// 52 | Blob Store Size                                               |
+	// 52 | Blob Index Size                                               |
 	//    +                                                               +
 	// 56 |                                                               |
 	//    +---------------+---------------+---------------+---------------+
@@ -167,11 +167,11 @@ func (fh fileHeader) serialize() ([]byte, error) {
 	binary.Write(&buf, binary.LittleEndian, fh.recordCount)
 	binary.Write(&buf, binary.LittleEndian, fh.blobCount)
 
-	binary.Write(&buf, binary.LittleEndian, fh.radixTreeOffset)
-	binary.Write(&buf, binary.LittleEndian, fh.radixTreeSize)
+	binary.Write(&buf, binary.LittleEndian, fh.radixIndexOffset)
+	binary.Write(&buf, binary.LittleEndian, fh.radixIndexSize)
 
-	binary.Write(&buf, binary.LittleEndian, fh.blobStoreOffset)
-	binary.Write(&buf, binary.LittleEndian, fh.blobStoreSize)
+	binary.Write(&buf, binary.LittleEndian, fh.blobIndexOffset)
+	binary.Write(&buf, binary.LittleEndian, fh.blobIndexSize)
 
 	binary.Write(&buf, binary.LittleEndian, uint64(fh.createdAt.Unix()))
 	binary.Write(&buf, binary.LittleEndian, uint64(fh.updatedAt.Unix()))
