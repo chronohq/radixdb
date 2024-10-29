@@ -198,7 +198,7 @@ func (rdb *RadixDB) buildOffsetTable() (map[*node]nodeOffset, error) {
 	err := rdb.traverse(func(current *node) error {
 		// TODO(toru): There is no need to do full node serialization.
 		// Write a function that computes the node size without serializing.
-		rawNode, err := current.serialize()
+		rawNode, err := current.serializeWithoutKey()
 
 		if err != nil {
 			return nil

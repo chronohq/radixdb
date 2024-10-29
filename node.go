@@ -228,9 +228,10 @@ func (n *node) prependKey(prefix []byte) {
 	n.updateChecksum()
 }
 
-// serialize converts the receiver node into a platform-agonostic binary
-// representation, and returns it. The actual return type is a byte slice.
-func (n node) serialize() ([]byte, error) {
+// serializeWithoutKey converts the receiver node into a platform-agonostic
+// binary representation, and returns it as a byte slice. The returned byte
+// slice does not contain the node key.
+func (n node) serializeWithoutKey() ([]byte, error) {
 	var buf bytes.Buffer
 
 	if !n.verifyChecksum() {
@@ -242,18 +243,7 @@ func (n node) serialize() ([]byte, error) {
 		return nil, err
 	}
 
-	// Step 2: Serialize the key and its length.
-	keyLen := uint64(len(n.key))
-
-	if err := binary.Write(&buf, binary.LittleEndian, keyLen); err != nil {
-		return nil, err
-	}
-
-	if _, err := buf.Write(n.key); err != nil {
-		return nil, err
-	}
-
-	// Step 3: Serialize the value and its length, if the node holds a record.
+	// Step 2: Serialize the value and its length, if the node holds a record.
 	if n.isRecord {
 		valLen := uint64(len(n.data))
 
@@ -272,14 +262,14 @@ func (n node) serialize() ([]byte, error) {
 		}
 	}
 
-	// Step 4: Serialize the number of children.
+	// Step 3: Serialize the number of children.
 	numChildren := uint64(len(n.children))
 
 	if err := binary.Write(&buf, binary.LittleEndian, numChildren); err != nil {
 		return nil, err
 	}
 
-	// Step 5: Reserve the space to hold the child node offsets.
+	// Step 4: Reserve the space to hold the child node offsets.
 	tmpOffset := uint64(0)
 
 	for i := 0; i < int(numChildren); i++ {

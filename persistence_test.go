@@ -25,7 +25,7 @@ func TestBuildOffsetTable(t *testing.T) {
 			return fmt.Errorf("missing offset: %q", current.key)
 		}
 
-		raw, _ := current.serialize()
+		raw, _ := current.serializeWithoutKey()
 		nodeSize := len(raw)
 
 		if offsetInfo.offset != uint64(expectedOffset) {

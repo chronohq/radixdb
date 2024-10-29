@@ -354,7 +354,7 @@ func TestSetValue(t *testing.T) {
 	}
 }
 
-func TestSerialize(t *testing.T) {
+func TestSerializeWithoutKey(t *testing.T) {
 	subject := node{
 		key:      []byte("apple"),
 		data:     []byte("sauce"),
@@ -367,7 +367,7 @@ func TestSerialize(t *testing.T) {
 
 	subject.updateChecksum()
 
-	rawBytes, err := subject.serialize()
+	rawBytes, err := subject.serializeWithoutKey()
 
 	if err != nil {
 		t.Errorf("node serialization failed: %v", err)
@@ -385,27 +385,6 @@ func TestSerialize(t *testing.T) {
 
 	if checksum != subject.checksum {
 		t.Errorf("unexpected checksum, got:%v, want:%v", checksum, subject.checksum)
-	}
-
-	// Reconstruct the key and its length.
-	var keyLen uint64
-
-	if err := binary.Read(reader, binary.LittleEndian, &keyLen); err != nil {
-		t.Fatalf("failed to read key length: %v", err)
-	}
-
-	if want := uint64(len(subject.key)); keyLen != want {
-		t.Errorf("unexpected key length, got:%d, want:%d", keyLen, len(subject.key))
-	}
-
-	keyData := make([]byte, keyLen)
-
-	if _, err := reader.Read(keyData); err != nil {
-		t.Fatalf("failed to read key data: %v", err)
-	}
-
-	if !bytes.Equal(keyData, subject.key) {
-		t.Errorf("unexpected key data, got:%q, want:%q", keyData, subject.key)
 	}
 
 	// Reconstruct the value and its length.
@@ -461,7 +440,7 @@ func TestSerialize(t *testing.T) {
 		// Tamper with the key.
 		subject.key = []byte("bandana")
 
-		if _, err := subject.serialize(); err != ErrInvalidChecksum {
+		if _, err := subject.serializeWithoutKey(); err != ErrInvalidChecksum {
 			t.Error("expected node serialization failure")
 		}
 	}
