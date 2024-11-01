@@ -32,6 +32,9 @@ const (
 	// maxUint16 is the maximum value of uint16.
 	maxUint16 = (1 << 16) - 1
 
+	// maxUint32 is the maximum value of uint32.
+	maxUint32 = (1 << 32) - 1
+
 	// magicByteLen represents the size of magicByte in bytes.
 	magicByteLen = sizeOfUint8
 

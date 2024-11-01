@@ -29,11 +29,15 @@ var (
 
 	// ErrNilKey is returned when an insertion is attempted using a nil key.
 	ErrNilKey = errors.New("key cannot be nil")
+
+	// ErrValueTooLarge is returned when the value size exceeds the 4GB limit.
+	ErrValueTooLarge = errors.New("value is too large")
 )
 
 const (
 	inlineValueThreshold = blobIDLen
 	maxKeyBytes          = maxUint16
+	maxValueBytes        = maxUint32
 )
 
 // RadixDB represents an in-memory Radix tree, providing concurrency-safe read
@@ -90,6 +94,10 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 
 	if len(key) > maxKeyBytes {
 		return ErrKeyTooLarge
+	}
+
+	if len(value) > maxValueBytes {
+		return ErrValueTooLarge
 	}
 
 	rdb.mu.Lock()
