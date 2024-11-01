@@ -29,6 +29,9 @@ const (
 	// maxChildPerNode is the maximum possible number of children per node.
 	maxChildPerNode = 256
 
+	// maxUint16 is the maximum value of uint16.
+	maxUint16 = (1 << 16) - 1
+
 	// magicByteLen represents the size of magicByte in bytes.
 	magicByteLen = sizeOfUint8
 

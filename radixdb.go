@@ -24,12 +24,16 @@ var (
 	// ErrKeyNotFound is returned when the key does not exist in the tree.
 	ErrKeyNotFound = errors.New("key not found")
 
+	// ErrKeyTooLarge is returned when the key size exceeds the 64KB limit.
+	ErrKeyTooLarge = errors.New("key is too large")
+
 	// ErrNilKey is returned when an insertion is attempted using a nil key.
 	ErrNilKey = errors.New("key cannot be nil")
 )
 
 const (
 	inlineValueThreshold = blobIDLen
+	maxKeyBytes          = maxUint16
 )
 
 // RadixDB represents an in-memory Radix tree, providing concurrency-safe read
@@ -82,6 +86,10 @@ func (rdb *RadixDB) Len() uint64 {
 func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 	if key == nil {
 		return ErrNilKey
+	}
+
+	if len(key) > maxKeyBytes {
+		return ErrKeyTooLarge
 	}
 
 	rdb.mu.Lock()
@@ -238,6 +246,10 @@ func (rdb *RadixDB) Get(key []byte) ([]byte, error) {
 func (rdb *RadixDB) Delete(key []byte) error {
 	if key == nil {
 		return ErrNilKey
+	}
+
+	if len(key) > maxKeyBytes {
+		return ErrKeyTooLarge
 	}
 
 	rdb.mu.Lock()
