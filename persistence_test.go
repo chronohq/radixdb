@@ -63,3 +63,17 @@ func TestFileHeaderSerialize(t *testing.T) {
 		t.Fatalf("invalid header checksum, got:%d, want:%d", got, want)
 	}
 }
+
+func TestNodeDescriptorSerialize(t *testing.T) {
+	rdb := basicTestTree()
+
+	subject, err := rdb.root.asDescriptor()
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, err := subject.serialize(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

@@ -253,10 +253,8 @@ func (n node) asDescriptor() (nodeDescriptor, error) {
 
 	ret.childOffsets = make([]uint64, 0, len(n.children))
 	ret.numChildren = uint16(len(n.children))
-	ret.dataLen = uint64(len(n.data))
+	ret.dataLen = uint32(len(n.data))
 	ret.data = n.data
-
-	ret.checksum = n.checksum
 
 	return ret, nil
 }

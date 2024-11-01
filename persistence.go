@@ -84,16 +84,18 @@ type nodeOffset struct {
 	size   uint64 // Size of the raw node data.
 }
 
-// nodeDescriptor represents the exact data structure of a node as it is
-// stored on disk. Everything in this struct is persisted.
+// nodeDescriptor represents the data structure of a node as it is stored on
+// disk, except the checksum field. All fields in this struct is persisted in
+// the same order. The checksum is transparently appended by the serializer.
 type nodeDescriptor struct {
 	isRecord     uint8
 	isBlob       uint8
 	numChildren  uint16
-	dataLen      uint64
+	keyLen       uint16
+	dataLen      uint32
+	key          []byte
 	data         []byte
 	childOffsets []uint64
-	checksum     uint32
 }
 
 type fileHeader struct {
@@ -248,4 +250,58 @@ func calculateChecksum(src []byte) (uint32, error) {
 	}
 
 	return h.Sum32(), nil
+}
+
+// serialize converts the nodeDescriptor into a byte slice for storage.
+func (nd nodeDescriptor) serialize() ([]byte, error) {
+	var buf bytes.Buffer
+
+	// Step 1: Serialize the fixed length metadata.
+	if err := buf.WriteByte(nd.isRecord); err != nil {
+		return nil, err
+	}
+
+	if err := buf.WriteByte(nd.isBlob); err != nil {
+		return nil, err
+	}
+
+	if err := binary.Write(&buf, binary.LittleEndian, nd.numChildren); err != nil {
+		return nil, err
+	}
+
+	if err := binary.Write(&buf, binary.LittleEndian, nd.keyLen); err != nil {
+		return nil, err
+	}
+
+	if err := binary.Write(&buf, binary.LittleEndian, nd.dataLen); err != nil {
+		return nil, err
+	}
+
+	// Step 2: Serialize the dynamic length fields.
+	if _, err := buf.Write(nd.key); err != nil {
+		return nil, err
+	}
+
+	if _, err := buf.Write(nd.data); err != nil {
+		return nil, err
+	}
+
+	for _, offset := range nd.childOffsets {
+		if err := binary.Write(&buf, binary.LittleEndian, offset); err != nil {
+			return nil, err
+		}
+	}
+
+	// Step 3: Compute the checksum and serialize the valaue.
+	checksum, err := calculateChecksum(buf.Bytes())
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := binary.Write(&buf, binary.LittleEndian, checksum); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }

@@ -456,16 +456,19 @@ func TestAsDescriptor(t *testing.T) {
 
 	src.addChild(&node{key: []byte("cherry")})
 	src.addChild(&node{key: []byte("durian")})
-	src.updateChecksum()
 
 	subject, err := src.asDescriptor()
 
-	if err != nil {
-		t.Fatal(err)
+	if err != ErrInvalidChecksum {
+		t.Fatalf("unexpected error, got:%v, want:%v", err, ErrInvalidChecksum)
 	}
 
-	if subject.checksum != src.checksum {
-		t.Fatalf("checksum mismatch, got:%d, want:%d", subject.checksum, src.checksum)
+	src.updateChecksum()
+
+	subject, err = src.asDescriptor()
+
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	if int(subject.numChildren) != len(src.children) {
