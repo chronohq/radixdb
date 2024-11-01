@@ -18,6 +18,9 @@ var (
 	// the expected value, indicating potential data corruption or tampering.
 	ErrInvalidChecksum = errors.New("checksum mismatch detected")
 
+	// ErrInvalidIndex is returned when an index error is detected.
+	ErrInvalidIndex = errors.New("invalid index detected")
+
 	// ErrKeyNotFound is returned when the key does not exist in the tree.
 	ErrKeyNotFound = errors.New("key not found")
 

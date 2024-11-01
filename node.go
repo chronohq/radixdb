@@ -228,6 +228,39 @@ func (n *node) prependKey(prefix []byte) {
 	n.updateChecksum()
 }
 
+// asDescriptor returns the nodeDescriptor representation of the node.
+func (n node) asDescriptor() (nodeDescriptor, error) {
+	ret := nodeDescriptor{
+		isRecord: 0,
+		isBlob:   0,
+	}
+
+	if !n.verifyChecksum() {
+		return ret, ErrInvalidChecksum
+	}
+
+	if n.isRecord {
+		ret.isRecord = 1
+	}
+
+	if n.isBlob {
+		ret.isBlob = 1
+	}
+
+	if len(n.children) > maxChildPerNode {
+		return ret, ErrInvalidIndex
+	}
+
+	ret.childOffsets = make([]uint64, 0, len(n.children))
+	ret.numChildren = uint16(len(n.children))
+	ret.dataLen = uint64(len(n.data))
+	ret.data = n.data
+
+	ret.checksum = n.checksum
+
+	return ret, nil
+}
+
 // serializeWithoutKey converts the receiver node into a platform-agonostic
 // binary representation, and returns it as a byte slice. The returned byte
 // slice does not contain the node key.

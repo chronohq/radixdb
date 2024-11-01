@@ -26,6 +26,9 @@ const (
 	// sizeOfUint64 is the size of uint64 in bytes.
 	sizeOfUint64 = 8
 
+	// maxChildPerNode is the maximum possible number of children per node.
+	maxChildPerNode = 256
+
 	// magicByteLen represents the size of magicByte in bytes.
 	magicByteLen = sizeOfUint8
 
@@ -73,6 +76,18 @@ const (
 type nodeOffset struct {
 	offset uint64 // Offset to the node in the file.
 	size   uint64 // Size of the raw node data.
+}
+
+// nodeDescriptor represents the exact data structure of a node as it is
+// stored on disk. Everything in this struct is persisted.
+type nodeDescriptor struct {
+	isRecord     uint8
+	isBlob       uint8
+	numChildren  uint16
+	dataLen      uint64
+	data         []byte
+	childOffsets []uint64
+	checksum     uint32
 }
 
 type fileHeader struct {

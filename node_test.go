@@ -445,3 +445,51 @@ func TestSerializeWithoutKey(t *testing.T) {
 		}
 	}
 }
+
+func TestAsDescriptor(t *testing.T) {
+	src := node{
+		key:      []byte("apple"),
+		data:     []byte("sauce"),
+		isRecord: true,
+		children: nil,
+	}
+
+	src.addChild(&node{key: []byte("cherry")})
+	src.addChild(&node{key: []byte("durian")})
+	src.updateChecksum()
+
+	subject, err := src.asDescriptor()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if subject.checksum != src.checksum {
+		t.Fatalf("checksum mismatch, got:%d, want:%d", subject.checksum, src.checksum)
+	}
+
+	if int(subject.numChildren) != len(src.children) {
+		t.Fatalf("numChildren mismatch, got:%d, want:%d", subject.numChildren, len(src.children))
+	}
+
+	if cap(subject.childOffsets) != len(src.children) {
+		t.Fatalf("unexpected childOffsets capacity, got:%d, want:%d", cap(subject.childOffsets), len(src.children))
+	}
+
+	if int(subject.dataLen) != len(src.data) {
+		t.Fatalf("dataLen mismatch, got:%d, want:%d", subject.dataLen, len(src.data))
+	}
+
+	// Test that the underlying pointer of the data is the same.
+	if &subject.data[0] != &src.data[0] {
+		t.Fatalf("data address mismatch, got:%p, want:%p", &subject.data[0], &src.data[0])
+	}
+
+	if subject.isRecord != 1 {
+		t.Fatalf("invalid isRecord, got:%d, want:1", subject.isRecord)
+	}
+
+	if subject.isBlob == 1 {
+		t.Fatalf("invalid isBlob, got:%d, want:0", subject.isBlob)
+	}
+}
