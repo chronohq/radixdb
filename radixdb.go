@@ -11,6 +11,9 @@ var (
 	// key that already exists in the database.
 	ErrDuplicateKey = errors.New("cannot insert duplicate key")
 
+	// ErrFileCorrupt is returned when a database file corruption is detected.
+	ErrFileCorrupt = errors.New("database file corruption detected")
+
 	// ErrInvalidBlobID is returned when an invalid blobID is detected.
 	ErrInvalidBlobID = errors.New("invalid blob id detected")
 

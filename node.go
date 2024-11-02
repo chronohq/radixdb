@@ -251,7 +251,7 @@ func (n node) asDescriptor() (nodeDescriptor, error) {
 		return ret, ErrInvalidIndex
 	}
 
-	ret.childOffsets = make([]uint64, 0, len(n.children))
+	ret.childOffsets = make([]uint64, len(n.children))
 	ret.numChildren = uint16(len(n.children))
 	ret.dataLen = uint32(len(n.data))
 	ret.data = n.data

@@ -1,6 +1,7 @@
 package radixdb
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"testing"
@@ -73,7 +74,58 @@ func TestNodeDescriptorSerialize(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if _, err := subject.serialize(); err != nil {
+	// Inject test child offsets.
+	for i := 0; i < int(subject.numChildren); i++ {
+		subject.childOffsets[i] = uint64(i)
+	}
+
+	rawDescriptor, err := subject.serialize()
+
+	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	decoded, err := deserializeNodeDescriptor(rawDescriptor)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if decoded.isRecord != subject.isRecord {
+		t.Fatalf("isRecord mismatch, got:%d, want:%d", decoded.isRecord, subject.isRecord)
+	}
+
+	if decoded.isBlob != subject.isBlob {
+		t.Fatalf("isBlob mismatch, got:%d, want:%d", decoded.isBlob, subject.isBlob)
+	}
+
+	if decoded.numChildren != subject.numChildren {
+		t.Fatalf("numChildren mismatch, got:%d, want:%d", decoded.numChildren, subject.numChildren)
+	}
+
+	if decoded.keyLen != subject.keyLen {
+		t.Fatalf("keyLen mismatch, got:%d, want:%d", decoded.keyLen, subject.keyLen)
+	}
+
+	if decoded.dataLen != subject.dataLen {
+		t.Fatalf("dataLen mismatch, got:%d, want:%d", decoded.dataLen, subject.dataLen)
+	}
+
+	if !bytes.Equal(decoded.key, subject.key) {
+		t.Fatalf("key mismatch, got:%q, want:%q", decoded.key, subject.key)
+	}
+
+	if !bytes.Equal(decoded.data, subject.data) {
+		t.Fatalf("data mismatch, got:%q, want:%q", decoded.data, subject.data)
+	}
+
+	if len(decoded.childOffsets) != len(subject.childOffsets) {
+		t.Fatalf("childOffsets length mismatch, got:%d, want:%d", len(decoded.childOffsets), len(subject.childOffsets))
+	}
+
+	for i := 0; i < int(decoded.numChildren); i++ {
+		if decoded.childOffsets[i] != subject.childOffsets[i] {
+			t.Fatalf("childOffset mismatch, got:%d, want:%d", decoded.childOffsets[i], subject.childOffsets[i])
+		}
 	}
 }

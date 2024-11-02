@@ -20,6 +20,9 @@ const (
 	// sizeOfUint8 is the size of uint8 in bytes.
 	sizeOfUint8 = 1
 
+	// sizeOfUint16 is the size of uint16 in bytes.
+	sizeOfUint16 = 2
+
 	// sizeOfUint32 is the size of uint32 in bytes.
 	sizeOfUint32 = 4
 
@@ -76,6 +79,10 @@ const (
 
 	// reservedTotalLen represents the total size of the reserved region.
 	reservedTotalLen = sizeOfUint8
+
+	// minNodeDescriptorLen is the minimum size of a serialized node descriptor.
+	// It is the accumulated size of the fixed length fields.
+	minNodeDescriptorLen = sizeOfUint8 + sizeOfUint8 + sizeOfUint16 + sizeOfUint16 + sizeOfUint32 + sizeOfUint32
 )
 
 // nodeOffsetInfo holds the serialized offset and size of a node.
@@ -304,4 +311,94 @@ func (nd nodeDescriptor) serialize() ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// deserializeNodeDescriptor reconstructs a nodeDescriptor from its serialized
+// byte representation. It reads the data in the same order as serialization,
+// verifies the data, and returns the nodeDescriptor.
+func deserializeNodeDescriptor(data []byte) (nodeDescriptor, error) {
+	var ret nodeDescriptor
+
+	// The raw data must be at least the length of the fixed-length fields.
+	if len(data) < minNodeDescriptorLen {
+		return ret, ErrInvalidIndex
+	}
+
+	// Determine the buffer positions of the descriptor and checksum.
+	descriptorPos := data[:len(data)-sizeOfUint32]
+	checksumPos := data[len(data)-sizeOfUint32:]
+
+	// Read the checksum from the serialized data.
+	var checksum uint32
+	checksumBuf := bytes.NewReader(checksumPos)
+
+	if err := binary.Read(checksumBuf, binary.LittleEndian, &checksum); err != nil {
+		return ret, err
+	}
+
+	// Compute the checksum of the descriptor content.
+	descriptorChecksum, err := calculateChecksum(descriptorPos)
+	if err != nil {
+		return ret, err
+	}
+
+	if checksum != descriptorChecksum {
+		return ret, ErrInvalidChecksum
+	}
+
+	// Reaching here means that we can start deserializing.
+	buf := bytes.NewReader(descriptorPos)
+
+	// Decode the fixed length metadata.
+	if err := binary.Read(buf, binary.LittleEndian, &ret.isRecord); err != nil {
+		return ret, err
+	}
+
+	if err := binary.Read(buf, binary.LittleEndian, &ret.isBlob); err != nil {
+		return ret, err
+	}
+
+	if err := binary.Read(buf, binary.LittleEndian, &ret.numChildren); err != nil {
+		return ret, err
+	}
+
+	if err := binary.Read(buf, binary.LittleEndian, &ret.keyLen); err != nil {
+		return ret, err
+	}
+
+	if err := binary.Read(buf, binary.LittleEndian, &ret.dataLen); err != nil {
+		return ret, err
+	}
+
+	// Reaching here means that the fixed length metadata is loaded on memory.
+	// Compute the total length of the node descriptor using the metadata, and
+	// verify the length of the given data buffer.
+	expectedLen := minNodeDescriptorLen
+	expectedLen += int(ret.keyLen)
+	expectedLen += int(ret.dataLen)
+	expectedLen += int(ret.numChildren) * sizeOfUint64
+
+	if len(data) != expectedLen {
+		return ret, ErrFileCorrupt
+	}
+
+	// Read the variable length fields.
+	ret.key = make([]byte, ret.keyLen)
+	if _, err := buf.Read(ret.key); err != nil {
+		return ret, err
+	}
+
+	ret.data = make([]byte, ret.dataLen)
+	if _, err := buf.Read(ret.data); err != nil {
+		return ret, err
+	}
+
+	ret.childOffsets = make([]uint64, ret.numChildren)
+	for i := 0; i < int(ret.numChildren); i++ {
+		if err := binary.Read(buf, binary.LittleEndian, &ret.childOffsets[i]); err != nil {
+			return ret, err
+		}
+	}
+
+	return ret, nil
 }
