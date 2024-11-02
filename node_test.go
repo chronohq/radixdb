@@ -446,6 +446,36 @@ func TestSerializeWithoutKey(t *testing.T) {
 	}
 }
 
+func TestSerializedSize(t *testing.T) {
+	src := node{
+		key:      []byte("apple"),
+		data:     []byte("sauce"),
+		isRecord: true,
+		children: nil,
+	}
+
+	src.addChild(&node{key: []byte("cherry")})
+	src.addChild(&node{key: []byte("durian")})
+
+	src.updateChecksum()
+
+	descriptor, err := src.asDescriptor()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawNode, err := descriptor.serialize()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if src.serializedSize() != len(rawNode) {
+		t.Fatalf("serializedSize mismatch, got:%d, want:%d", src.serializedSize(), len(rawNode))
+	}
+}
+
 func TestAsDescriptor(t *testing.T) {
 	src := node{
 		key:      []byte("apple"),

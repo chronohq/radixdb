@@ -54,6 +54,29 @@ func (n node) value(blobs blobStore) []byte {
 	return ret
 }
 
+// serializedSize returns the size of the serialized node representation.
+func (n node) serializedSize() int {
+	ret := sizeOfUint8  // isRecord
+	ret += sizeOfUint8  // isBlob
+	ret += sizeOfUint16 // numChildren
+	ret += sizeOfUint16 // keyLen
+	ret += sizeOfUint32 // dataLen
+
+	// variable-length key
+	ret += len(n.key)
+
+	// variable-length value
+	ret += len(n.data)
+
+	// child offsets of 8-byte slots
+	ret += len(n.children) * sizeOfUint64
+
+	// serialized node checksum
+	ret += sizeOfUint32
+
+	return ret
+}
+
 // findCompatibleChild searches through the child nodes of the receiver node.
 // It returns the first child node that shares a common prefix. If no child is
 // found, the function returns nil.
@@ -251,9 +274,15 @@ func (n node) asDescriptor() (nodeDescriptor, error) {
 		return ret, ErrInvalidIndex
 	}
 
+	if len(n.key) > maxKeyBytes {
+		return ret, ErrInvalidIndex
+	}
+
 	ret.childOffsets = make([]uint64, len(n.children))
 	ret.numChildren = uint16(len(n.children))
+	ret.keyLen = uint16(len(n.key))
 	ret.dataLen = uint32(len(n.data))
+	ret.key = n.key
 	ret.data = n.data
 
 	return ret, nil
