@@ -82,7 +82,12 @@ const (
 
 	// minNodeDescriptorLen is the minimum size of a serialized node descriptor.
 	// It is the accumulated size of the fixed length fields.
-	minNodeDescriptorLen = sizeOfUint8 + sizeOfUint8 + sizeOfUint16 + sizeOfUint16 + sizeOfUint32 + sizeOfUint32
+	minNodeDescriptorLen = sizeOfUint8 + sizeOfUint16 + sizeOfUint16 + sizeOfUint32 + sizeOfUint32
+)
+
+const (
+	flagIsRecord = 1 << iota // 0b00000001
+	flagHasBlob              // 0b00000010
 )
 
 // nodeOffsetInfo holds the serialized offset and size of a node.
@@ -95,8 +100,7 @@ type nodeOffset struct {
 // All fields in this struct is persisted in the same order. The checksum is
 // transparently appended by the serializer.
 type persistentNode struct {
-	isRecord     uint8
-	isBlob       uint8
+	flags        uint8
 	numChildren  uint16
 	keyLen       uint16
 	dataLen      uint32
@@ -259,16 +263,22 @@ func calculateChecksum(src []byte) (uint32, error) {
 	return h.Sum32(), nil
 }
 
+// isRecord returns true if the isRecord flag is set.
+func (pn persistentNode) isRecord() bool {
+	return pn.flags&flagIsRecord != 0
+}
+
+// hasBlob returns true if the hasBlob flag is set.
+func (pn persistentNode) hasBlob() bool {
+	return pn.flags&flagHasBlob != 0
+}
+
 // serialize converts the nodeDescriptor into a byte slice for storage.
 func (pn persistentNode) serialize() ([]byte, error) {
 	var buf bytes.Buffer
 
 	// Step 1: Serialize the fixed length metadata.
-	if err := buf.WriteByte(pn.isRecord); err != nil {
-		return nil, err
-	}
-
-	if err := buf.WriteByte(pn.isBlob); err != nil {
+	if err := buf.WriteByte(pn.flags); err != nil {
 		return nil, err
 	}
 
@@ -350,11 +360,7 @@ func deserializePersistentNode(data []byte) (persistentNode, error) {
 	buf := bytes.NewReader(descriptorPos)
 
 	// Decode the fixed length metadata.
-	if err := binary.Read(buf, binary.LittleEndian, &ret.isRecord); err != nil {
-		return ret, err
-	}
-
-	if err := binary.Read(buf, binary.LittleEndian, &ret.isBlob); err != nil {
+	if err := binary.Read(buf, binary.LittleEndian, &ret.flags); err != nil {
 		return ret, err
 	}
 

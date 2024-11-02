@@ -91,12 +91,12 @@ func TestPersistentNodeSerialize(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if decoded.isRecord != subject.isRecord {
-		t.Fatalf("isRecord mismatch, got:%d, want:%d", decoded.isRecord, subject.isRecord)
+	if decoded.isRecord() != subject.isRecord() {
+		t.Fatalf("isRecord mismatch, got:%t, want:%t", decoded.isRecord(), subject.isRecord())
 	}
 
-	if decoded.isBlob != subject.isBlob {
-		t.Fatalf("isBlob mismatch, got:%d, want:%d", decoded.isBlob, subject.isBlob)
+	if decoded.hasBlob() != subject.hasBlob() {
+		t.Fatalf("isBlob mismatch, got:%t, want:%t", decoded.hasBlob(), subject.hasBlob())
 	}
 
 	if decoded.numChildren != subject.numChildren {

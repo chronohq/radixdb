@@ -56,8 +56,7 @@ func (n node) value(blobs blobStore) []byte {
 
 // serializedSize returns the size of the serialized node representation.
 func (n node) serializedSize() int {
-	ret := sizeOfUint8  // isRecord
-	ret += sizeOfUint8  // isBlob
+	ret := sizeOfUint8  // flags
 	ret += sizeOfUint16 // numChildren
 	ret += sizeOfUint16 // keyLen
 	ret += sizeOfUint32 // dataLen
@@ -253,21 +252,18 @@ func (n *node) prependKey(prefix []byte) {
 
 // asDescriptor returns the nodeDescriptor representation of the node.
 func (n node) asDescriptor() (persistentNode, error) {
-	ret := persistentNode{
-		isRecord: 0,
-		isBlob:   0,
-	}
+	ret := persistentNode{flags: 0}
 
 	if !n.verifyChecksum() {
 		return ret, ErrInvalidChecksum
 	}
 
 	if n.isRecord {
-		ret.isRecord = 1
+		ret.flags |= flagIsRecord
 	}
 
 	if n.isBlob {
-		ret.isBlob = 1
+		ret.flags |= flagHasBlob
 	}
 
 	if len(n.children) > maxChildPerNode {

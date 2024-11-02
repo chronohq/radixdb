@@ -518,11 +518,11 @@ func TestAsDescriptor(t *testing.T) {
 		t.Fatalf("data address mismatch, got:%p, want:%p", &subject.data[0], &src.data[0])
 	}
 
-	if subject.isRecord != 1 {
-		t.Fatalf("invalid isRecord, got:%d, want:1", subject.isRecord)
+	if !subject.isRecord() {
+		t.Fatalf("invalid isRecord, got:%t, want:true", subject.isRecord())
 	}
 
-	if subject.isBlob == 1 {
-		t.Fatalf("invalid isBlob, got:%d, want:0", subject.isBlob)
+	if subject.hasBlob() {
+		t.Fatalf("invalid hasBlob, got:%t, want:false", subject.hasBlob())
 	}
 }
