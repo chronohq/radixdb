@@ -65,7 +65,7 @@ func TestFileHeaderSerialize(t *testing.T) {
 	}
 }
 
-func TestNodeDescriptorSerialize(t *testing.T) {
+func TestPersistentNodeSerialize(t *testing.T) {
 	rdb := basicTestTree()
 
 	subject, err := rdb.root.asDescriptor()
@@ -85,7 +85,7 @@ func TestNodeDescriptorSerialize(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	decoded, err := deserializeNodeDescriptor(rawDescriptor)
+	decoded, err := deserializePersistentNode(rawDescriptor)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

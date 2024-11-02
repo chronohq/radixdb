@@ -91,10 +91,10 @@ type nodeOffset struct {
 	size   uint64 // Size of the raw node data.
 }
 
-// nodeDescriptor represents the data structure of a node as it is stored on
-// disk, except the checksum field. All fields in this struct is persisted in
-// the same order. The checksum is transparently appended by the serializer.
-type nodeDescriptor struct {
+// nodeDescriptor represents the on-disk data structure of a Radix tree node.
+// All fields in this struct is persisted in the same order. The checksum is
+// transparently appended by the serializer.
+type persistentNode struct {
 	isRecord     uint8
 	isBlob       uint8
 	numChildren  uint16
@@ -260,40 +260,40 @@ func calculateChecksum(src []byte) (uint32, error) {
 }
 
 // serialize converts the nodeDescriptor into a byte slice for storage.
-func (nd nodeDescriptor) serialize() ([]byte, error) {
+func (pn persistentNode) serialize() ([]byte, error) {
 	var buf bytes.Buffer
 
 	// Step 1: Serialize the fixed length metadata.
-	if err := buf.WriteByte(nd.isRecord); err != nil {
+	if err := buf.WriteByte(pn.isRecord); err != nil {
 		return nil, err
 	}
 
-	if err := buf.WriteByte(nd.isBlob); err != nil {
+	if err := buf.WriteByte(pn.isBlob); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(&buf, binary.LittleEndian, nd.numChildren); err != nil {
+	if err := binary.Write(&buf, binary.LittleEndian, pn.numChildren); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(&buf, binary.LittleEndian, nd.keyLen); err != nil {
+	if err := binary.Write(&buf, binary.LittleEndian, pn.keyLen); err != nil {
 		return nil, err
 	}
 
-	if err := binary.Write(&buf, binary.LittleEndian, nd.dataLen); err != nil {
+	if err := binary.Write(&buf, binary.LittleEndian, pn.dataLen); err != nil {
 		return nil, err
 	}
 
 	// Step 2: Serialize the dynamic length fields.
-	if _, err := buf.Write(nd.key); err != nil {
+	if _, err := buf.Write(pn.key); err != nil {
 		return nil, err
 	}
 
-	if _, err := buf.Write(nd.data); err != nil {
+	if _, err := buf.Write(pn.data); err != nil {
 		return nil, err
 	}
 
-	for _, offset := range nd.childOffsets {
+	for _, offset := range pn.childOffsets {
 		if err := binary.Write(&buf, binary.LittleEndian, offset); err != nil {
 			return nil, err
 		}
@@ -313,11 +313,11 @@ func (nd nodeDescriptor) serialize() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// deserializeNodeDescriptor reconstructs a nodeDescriptor from its serialized
+// deserializePersistentNode reconstructs a persistentNode from its serialized
 // byte representation. It reads the data in the same order as serialization,
-// verifies the data, and returns the nodeDescriptor.
-func deserializeNodeDescriptor(data []byte) (nodeDescriptor, error) {
-	var ret nodeDescriptor
+// verifies the data, and returns the persistentNode.
+func deserializePersistentNode(data []byte) (persistentNode, error) {
+	var ret persistentNode
 
 	// The raw data must be at least the length of the fixed-length fields.
 	if len(data) < minNodeDescriptorLen {

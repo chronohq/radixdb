@@ -252,8 +252,8 @@ func (n *node) prependKey(prefix []byte) {
 }
 
 // asDescriptor returns the nodeDescriptor representation of the node.
-func (n node) asDescriptor() (nodeDescriptor, error) {
-	ret := nodeDescriptor{
+func (n node) asDescriptor() (persistentNode, error) {
+	ret := persistentNode{
 		isRecord: 0,
 		isBlob:   0,
 	}
