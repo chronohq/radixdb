@@ -48,7 +48,9 @@ func printTree(node *node, prefix string, isLast bool, isRoot bool, treeSize uin
 		}
 	}
 
-	for i, child := range node.children {
-		printTree(child, prefix, i == len(node.children)-1, false, treeSize)
+	var i uint16
+	for child := node.firstChild; child != nil; child = child.nextSibling {
+		printTree(child, prefix, i == node.numChildren-1, false, treeSize)
+		i++
 	}
 }

@@ -109,7 +109,6 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 	newNode := &node{
 		key:      key,
 		isRecord: true,
-		children: []*node{},
 	}
 
 	newNode.setValue(rdb.blobs, value)
@@ -160,11 +159,11 @@ func (rdb *RadixDB) Insert(key []byte, value []byte) error {
 			if parent == nil {
 				rdb.root = newNode
 			} else {
-				for i, child := range parent.children {
-					if child == current {
-						parent.children[i] = newNode
-					}
+				if err := parent.removeChild(current); err != nil {
+					return err
 				}
+
+				parent.addChild(newNode)
 			}
 
 			rdb.numNodes++
@@ -305,8 +304,8 @@ func (rdb *RadixDB) Delete(key []byte) error {
 
 			// If the deletion had left the parent node with only one child,
 			// it means that the child can take its place in the tree.
-			if len(parent.children) == 1 {
-				onlyChild := parent.children[0]
+			if parent.numChildren == 1 {
+				onlyChild := parent.firstChild
 
 				// If the parent is the root node, we can simply promote
 				// the onlyChild node as the new root node.
@@ -338,20 +337,18 @@ func (rdb *RadixDB) Delete(key []byte) error {
 
 	// If the node only has one child, the child's key is reconstructed,
 	// and then it takes over the node's position in the tree.
-	if len(node.children) == 1 {
-		onlyChild := node.children[0]
+	if node.numChildren == 1 {
+		onlyChild := node.firstChild
 		onlyChild.prependKey(node.key)
 
 		if parent == nil && node == rdb.root {
 			rdb.root = onlyChild
 		} else {
-			_, index, err := parent.findChild(node.key)
-
-			if err != nil {
+			if err := parent.removeChild(node); err != nil {
 				return err
 			}
 
-			parent.children[index] = onlyChild
+			parent.addChild(onlyChild)
 		}
 
 		rdb.numRecords--
@@ -419,14 +416,17 @@ func (rdb *RadixDB) splitNode(parent *node, current *node, newNode *node, common
 	if parent == nil && current == rdb.root {
 		rdb.root = newParent
 		rdb.numRecords++
+
 		return
 	}
 
-	// Update the parent of the current node to point at splitNode.
-	for i, child := range parent.children {
+	// Update the parent of the current node to point at newParent.
+	for child := parent.firstChild; child != nil; child = child.nextSibling {
 		if child == current {
-			parent.children[i] = newParent
+			parent.removeChild(child)
+			parent.addChild(newParent)
 			rdb.numRecords++
+
 			return
 		}
 	}
@@ -531,9 +531,15 @@ func (rdb *RadixDB) traverse(cb func(*node) error) error {
 			return err
 		}
 
-		// Stack the chlidren by appending them in reverse order.
-		for i := len(current.children) - 1; i >= 0; i-- {
-			stack = append(stack, current.children[i])
+		// Collect all children, and stack them in reverse order.
+		var children []*node
+
+		for child := current.firstChild; child != nil; child = child.nextSibling {
+			children = append(children, child)
+		}
+
+		for i := len(children) - 1; i >= 0; i-- {
+			stack = append(stack, children[i])
 		}
 	}
 

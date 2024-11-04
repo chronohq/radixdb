@@ -50,7 +50,7 @@ func TestSplitNode(t *testing.T) {
 	commonPrefix := longestCommonPrefix(rdb.root.key, newNode.key)
 	rdb.splitNode(nil, rdb.root, newNode, commonPrefix)
 
-	if rdb.Len() != 1 && len(rdb.root.children) != 1 {
+	if rdb.Len() != 1 && rdb.root.numChildren != 1 {
 		t.Errorf("Len(): got:%d, want:1", rdb.Len())
 	}
 
@@ -72,7 +72,7 @@ func TestSplitNode(t *testing.T) {
 	commonPrefix = longestCommonPrefix(newNode.key, strawberryNode.key)
 	rdb.splitNode(rdb.root, newNode, strawberryNode, commonPrefix)
 
-	if rdb.Len() != 2 && len(rdb.root.children) != 2 {
+	if rdb.Len() != 2 && rdb.root.numChildren != 2 {
 		t.Errorf("Len(): got:%d, want:2", rdb.Len())
 	}
 
@@ -243,25 +243,34 @@ func TestInsert(t *testing.T) {
 		}
 
 		// Root must only have one children: "p".
-		if len := len(rdb.root.children); len != 1 {
+		if len := rdb.root.numChildren; len != 1 {
 			t.Errorf("len(rdb.root.children): got:%d, want:1", len)
 		}
 
 		// "a->p" node must only have three children: "p", "ex", "ology",
-		apNode := rdb.root.children[0]
+		apNode := rdb.root.firstChild
 		{
 			if !bytes.Equal(apNode.key, []byte("p")) {
 				t.Errorf("apNode.key: got:%q, want:%q", apNode.key, "p")
 			}
 
-			if len := len(apNode.children); len != 3 {
+			if len := apNode.numChildren; len != 3 {
 				t.Errorf("len(apNode.children): got:%d, want:3", len)
 			}
 
-			for i, expected := range [][]byte{[]byte("ex"), []byte("ology"), []byte("p")} {
-				if !bytes.Equal(apNode.children[i].key, expected) {
-					t.Errorf("unexpected key: got:%q, want:%q", apNode.children[i].key, expected)
+			expectedKeys := [][]byte{[]byte("ex"), []byte("ology"), []byte("p")}
+			i := 0
+
+			for child := apNode.firstChild; child != nil; child = child.nextSibling {
+				if i >= len(expectedKeys) {
+					t.Fatalf("too many children, exceeding:%d", i)
 				}
+
+				if !bytes.Equal(child.key, expectedKeys[i]) {
+					t.Fatalf("unexpected key, got:%q want:%q", child.key, expectedKeys[i])
+				}
+
+				i++
 			}
 
 			// "a->p" node started off as a non-record node, but it became a
@@ -271,8 +280,8 @@ func TestInsert(t *testing.T) {
 			}
 
 			// "a->p->ex" and "a->p->ology" child nodes are leaf nodes.
-			apexNode := apNode.children[0]
-			apologyNode := apNode.children[1]
+			apexNode := apNode.firstChild
+			apologyNode := apexNode.nextSibling
 
 			if !bytes.Equal(apexNode.key, []byte("ex")) {
 				t.Errorf("unexpected key: got:%q, want:%q", apexNode.key, "ex")
@@ -292,32 +301,41 @@ func TestInsert(t *testing.T) {
 		}
 
 		// "a->p->p" node must only have three children: "l", "ointment", "roved".
-		appNode := apNode.children[2]
+		appNode := apNode.firstChild.nextSibling.nextSibling
 		{
 			if !bytes.Equal(appNode.key, []byte("p")) {
 				t.Errorf("appNode.key: got:%q, want:%q", appNode.key, "p")
 			}
 
-			if len := len(appNode.children); len != 3 {
+			if len := appNode.numChildren; len != 3 {
 				t.Errorf("len(appNode.children): got:%d, want:3", len)
 			}
 
-			for i, expectedKey := range [][]byte{[]byte("l"), []byte("ointment"), []byte("roved")} {
-				if !bytes.Equal(appNode.children[i].key, expectedKey) {
-					t.Errorf("unexpected key: got:%q, want:%q", appNode.children[i].key, expectedKey)
+			expectedKeys := [][]byte{[]byte("l"), []byte("ointment"), []byte("roved")}
+			i := 0
+
+			for child := appNode.firstChild; child != nil; child = child.nextSibling {
+				if i >= len(expectedKeys) {
+					t.Fatalf("too many children, exceeding:%d", i)
 				}
+
+				if !bytes.Equal(child.key, expectedKeys[i]) {
+					t.Fatalf("unexpected key, got:%q want:%q", child.key, expectedKeys[i])
+				}
+
+				i++
 			}
 		}
 
 		// "a->p->p->l" node must only have three children: "e", "i", "y".
-		applNode := appNode.children[0]
+		applNode := appNode.firstChild
 		{
 			if !bytes.Equal(applNode.key, []byte("l")) {
 				t.Errorf("applNode.key: got:%q, want:%q", applNode.key, "l")
 			}
 
-			if len := len(applNode.children); len != 3 {
-				t.Errorf("len(applNode.children): got:%d, want:3", len)
+			if applNode.numChildren != 3 {
+				t.Errorf("len(applNode.children): got:%d, want:3", applNode.numChildren)
 			}
 
 			// applNode is a path component produced by split.
@@ -325,31 +343,36 @@ func TestInsert(t *testing.T) {
 				t.Errorf("applNode.isRecord: got:%t, want:false", applNode.isRecord)
 			}
 
-			for i, expectedKey := range [][]byte{[]byte("e"), []byte("i"), []byte("y")} {
-				if !bytes.Equal(applNode.children[i].key, expectedKey) {
-					t.Errorf("unexpected key: got:%q, want:%q", applNode.children[i].key, expectedKey)
+			expectedKeys := [][]byte{[]byte("e"), []byte("i"), []byte("y")}
+			i := 0
+
+			for child := applNode.firstChild; child != nil; child = child.nextSibling {
+				if !bytes.Equal(child.key, expectedKeys[i]) {
+					t.Fatalf("unexpected key, got:%q want:%q", child.key, expectedKeys[i])
 				}
+
+				i++
 			}
 
 			// "e" and "y" are leaf nodes.
-			if !applNode.children[0].isLeaf() {
-				t.Errorf("isLeaf(e): got:%t, want:true", applNode.children[0].isLeaf())
+			if !applNode.firstChild.isLeaf() {
+				t.Errorf("isLeaf(e): got:%t, want:true", applNode.firstChild.isLeaf())
 			}
 
-			if !applNode.children[2].isLeaf() {
-				t.Errorf("isLeaf(y): got:%t, want:0", applNode.children[1].isLeaf())
+			if !applNode.firstChild.nextSibling.nextSibling.isLeaf() {
+				t.Errorf("isLeaf(y): got:%t, want:0", applNode.firstChild.nextSibling.nextSibling.isLeaf())
 			}
 		}
 
 		// "a->p->p->l->i" node must only have two children: "cation", "ance".
-		appliNode := applNode.children[1]
+		appliNode := applNode.firstChild.nextSibling
 		{
 			if !bytes.Equal(appliNode.key, []byte("i")) {
 				t.Errorf("applNode.key: got:%q, want:%q", applNode.key, "l")
 			}
 
-			if len := len(appliNode.children); len != 2 {
-				t.Errorf("len(appliNode.children): got:%d, want:2", len)
+			if appliNode.numChildren != 2 {
+				t.Errorf("len(appliNode.children): got:%d, want:2", appliNode.numChildren)
 			}
 
 			// "a->p->p->l->i" node is a path component produced by split.
@@ -357,16 +380,20 @@ func TestInsert(t *testing.T) {
 				t.Errorf("applNode.isRecord: got:%t, want:false", appliNode.isRecord)
 			}
 
-			for i, expectedKey := range [][]byte{[]byte("ance"), []byte("cation")} {
-				if !bytes.Equal(appliNode.children[i].key, expectedKey) {
-					t.Errorf("unexpected key: got:%q, want:%q", appliNode.children[i].key, expectedKey)
+			expectedKeys := [][]byte{[]byte("ance"), []byte("cation")}
+			i := 0
+
+			for child := appliNode.firstChild; child != nil; child = child.nextSibling {
+				if !bytes.Equal(child.key, expectedKeys[i]) {
+					t.Fatalf("unexpected key, got:%q want:%q", child.key, expectedKeys[i])
 				}
 
 				// Every child: "cation" and "ance" are leaf nodes.
-				isLeaf := appliNode.children[i].isLeaf()
-				if !isLeaf {
-					t.Errorf("isLeaf(%q): got:%t, want:true", appliNode.children[i].key, isLeaf)
+				if !child.isLeaf() {
+					t.Errorf("isLeaf(%q): got:%t, want:true", child.key, child.isLeaf())
 				}
+
+				i++
 			}
 		}
 
@@ -538,7 +565,7 @@ func TestDelete(t *testing.T) {
 
 			// Spin-off test suite for a complicated auto parent converstion behavior.
 			if bytes.Equal(test.key, []byte("banana")) {
-				subTreeRoot := rdb.root.children[1]
+				subTreeRoot := rdb.root.firstChild.nextSibling
 
 				if !bytes.Equal(subTreeRoot.key, []byte("b")) {
 					t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.key, []byte("b"))
@@ -546,84 +573,94 @@ func TestDelete(t *testing.T) {
 
 				expected := []struct {
 					key         []byte
-					numChildren int
+					numChildren uint16
 				}{
 					{[]byte("and"), 2},
 					{[]byte("erry"), 0},
 					{[]byte("lueberry"), 0},
 				}
 
-				for i, exp := range expected {
-					subject := subTreeRoot.children[i]
-
-					if !bytes.Equal(subject.key, exp.key) {
-						t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.children[i].key, exp.key)
+				i := 0
+				for child := subTreeRoot.firstChild; child != nil; child = child.nextSibling {
+					if !bytes.Equal(child.key, expected[i].key) {
+						t.Errorf("unexpected key: got:%q, want:%q", child.key, expected[i].key)
 					}
 
-					if len := len(subject.children); len != exp.numChildren {
-						t.Errorf("unexpected child count: got:%d, want:%d", len, exp.numChildren)
+					if child.numChildren != expected[i].numChildren {
+						t.Errorf("unexpected child count: got:%d, want:%d", child.numChildren, expected[i].numChildren)
 					}
+
+					i++
 				}
 
-				subject := subTreeRoot.children[0]
+				subject := subTreeRoot.firstChild
 				keys := [][]byte{[]byte("age"), []byte("saw")}
 
-				for i, k := range keys {
-					if !bytes.Equal(subject.children[i].key, k) {
-						t.Errorf("unexpected key: got:%q, want:%q", subject.children[i].key, k)
+				i = 0
+				for child := subject.firstChild; child != nil; child = child.nextSibling {
+					if !bytes.Equal(child.key, keys[i]) {
+						t.Errorf("unexpected key: got:%q, want:%q", child.key, keys[i])
 					}
 
-					if !subject.children[i].isLeaf() {
-						t.Errorf("expected leaf node: got:%t", subject.children[i].isLeaf())
+					if !child.isLeaf() {
+						t.Errorf("expected leaf node: got:%t", child.isLeaf())
 					}
+
+					i++
 				}
 			}
 
 			if bytes.Equal(test.key, []byte("lime")) {
-				subTreeRoot := rdb.root.children[2]
+				subTreeRoot := rdb.root.firstChild.nextSibling.nextSibling
 
 				if !bytes.Equal(subTreeRoot.key, []byte("l")) {
 					t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.key, []byte("l"))
 				}
 
-				if len := len(subTreeRoot.children); len != 2 {
-					t.Errorf("unexpected child count: got:%d, want:2", len)
+				if subTreeRoot.numChildren != 2 {
+					t.Errorf("unexpected child count: got:%d, want:2", subTreeRoot.numChildren)
 				}
 
-				expectations := [][]byte{[]byte("emon"), []byte("imestone")}
+				expectedKeys := [][]byte{[]byte("emon"), []byte("imestone")}
 
-				for i, expected := range expectations {
-					if !bytes.Equal(subTreeRoot.children[i].key, expected) {
-						t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.children[i].key, expected)
+				i := 0
+				for child := subTreeRoot.firstChild; child != nil; child = child.nextSibling {
+					if !bytes.Equal(child.key, expectedKeys[i]) {
+						t.Errorf("unexpected key: got:%q, want:%q", child.key, expectedKeys[i])
 					}
 
-					if !subTreeRoot.children[i].isLeaf() {
-						t.Errorf("expected (%q) to be a leaf node", subTreeRoot.children[i].key)
+					if !child.isLeaf() {
+						t.Errorf("expected leaf node: got:%t", child.isLeaf())
 					}
+
+					i++
 				}
 			}
 
 			if bytes.Equal(test.key, []byte("blueberry")) {
-				subTreeRoot := rdb.root.children[1]
+				subTreeRoot := rdb.root.firstChild.nextSibling
 
 				if !bytes.Equal(subTreeRoot.key, []byte("band")) {
 					t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.key, []byte("band"))
 				}
 
-				if len := len(subTreeRoot.children); len != 2 {
-					t.Errorf("unexpected child count: got:%d, want:2", len)
+				if subTreeRoot.numChildren != 2 {
+					t.Errorf("unexpected child count: got:%d, want:2", subTreeRoot.numChildren)
 				}
 
-				expectations := [][]byte{[]byte("age"), []byte("saw")}
+				expectedKeys := [][]byte{[]byte("age"), []byte("saw")}
 
-				for i, expected := range expectations {
-					if !bytes.Equal(subTreeRoot.children[i].key, expected) {
-						t.Errorf("unexpected key: got:%q, want:%q", subTreeRoot.children[i].key, expected)
+				i := 0
+				for child := subTreeRoot.firstChild; child != nil; child = child.nextSibling {
+					if !bytes.Equal(child.key, expectedKeys[i]) {
+						t.Errorf("unexpected key: got:%q, want:%q", child.key, expectedKeys[i])
 					}
 
-					if !subTreeRoot.children[i].isLeaf() {
-						t.Errorf("expected (%q) to be a leaf node", subTreeRoot.children[i].key)
+					if !child.isLeaf() {
+						t.Errorf("expected leaf node: got:%t", child.isLeaf())
 					}
+
+					i++
 				}
 			}
 
@@ -641,12 +678,12 @@ func TestDelete(t *testing.T) {
 					t.Errorf("unexpected isRecord, got:%t, want:false", rdb.root.isRecord)
 				}
 
-				if len := len(rdb.root.children); len != 2 {
-					t.Errorf("unexpected child count: got:%d, want:2", len)
+				if rdb.root.numChildren != 2 {
+					t.Errorf("unexpected child count: got:%d, want:2", rdb.root.numChildren)
 				}
 
-				left := rdb.root.children[0]
-				right := rdb.root.children[1]
+				left := rdb.root.firstChild
+				right := left.nextSibling
 
 				if !bytes.Equal(left.key, []byte("et")) {
 					t.Errorf("unexpected key: got:%q, want:%q", left.key, []byte("et"))
@@ -663,8 +700,8 @@ func TestDelete(t *testing.T) {
 					t.Errorf("unexpected key: got:%q, want:%q", rdb.root.key, []byte("applet"))
 				}
 
-				if len := len(rdb.root.children); len > 0 {
-					t.Errorf("unexpected child count: got:%d, want:0", len)
+				if rdb.root.numChildren > 0 {
+					t.Errorf("unexpected child count: got:%d, want:0", rdb.root.numChildren)
 				}
 
 				if len := rdb.Len(); len != 1 {
@@ -703,7 +740,7 @@ func TestDelete(t *testing.T) {
 		rdb.Delete([]byte("apple"))
 		rdb.Delete([]byte("applet"))
 
-		subject := rdb.root.children[0]
+		subject := rdb.root.firstChild
 
 		if len := rdb.Len(); len != originalLen-2 {
 			t.Errorf("unexpected tree size: got:%d, want:2", len)
@@ -713,12 +750,12 @@ func TestDelete(t *testing.T) {
 			t.Errorf("unexpected key: got:%q, want:%q", rdb.root.key, []byte("ap"))
 		}
 
-		if len := len(subject.children); len != 2 {
-			t.Errorf("unexpected child count: got:%d, want:2", len)
+		if subject.numChildren != 2 {
+			t.Errorf("unexpected child count: got:%d, want:2", subject.numChildren)
 		}
 
-		leftNode := subject.children[0]
-		rightNode := subject.children[1]
+		leftNode := subject.firstChild
+		rightNode := leftNode.nextSibling
 
 		if !bytes.Equal(leftNode.key, []byte("plication")) {
 			t.Errorf("unexpected key: got:%q, want:%q", leftNode.key, []byte("plication"))
@@ -752,7 +789,7 @@ func TestDelete(t *testing.T) {
 			t.Errorf("unexpected blobStore size, got:%d, want:3", len(rdb.blobs))
 		}
 
-		blobID, err := buildBlobID(rdb.root.children[0].data)
+		blobID, err := buildBlobID(rdb.root.firstChild.data)
 
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)

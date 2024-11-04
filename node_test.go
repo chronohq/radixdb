@@ -7,13 +7,10 @@ import (
 )
 
 func TestFindCompatibleChild(t *testing.T) {
-	root := &node{
-		children: []*node{
-			{key: []byte("apple")},
-			{key: []byte("banana")},
-			{key: []byte("citron")},
-		},
-	}
+	subject := &node{}
+	subject.addChild(&node{key: []byte("apple")})
+	subject.addChild(&node{key: []byte("banana")})
+	subject.addChild(&node{key: []byte("citron")})
 
 	tests := []struct {
 		key      []byte
@@ -28,7 +25,7 @@ func TestFindCompatibleChild(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		child := root.findCompatibleChild([]byte(test.key))
+		child := subject.findCompatibleChild([]byte(test.key))
 		if (child == nil && test.expected != nil) || (child != nil && !bytes.Equal(child.key, test.expected)) {
 			t.Errorf("findCompatibleChild(%q): got:%q, want:%q", test.key, child.key, test.expected)
 		}
@@ -87,12 +84,12 @@ func TestAddChild(t *testing.T) {
 	{
 		parent.addChild(child1)
 
-		if len(parent.children) != 1 {
-			t.Errorf("unexpected len: got:%d, want:1", len(parent.children))
+		if parent.numChildren != 1 {
+			t.Errorf("unexpected len: got:%d, want:1", parent.numChildren)
 		}
 
-		if !bytes.Equal(parent.children[0].key, child1.key) {
-			t.Errorf("unexpected key: got:%q, want:%q", parent.children[0].key, child1.key)
+		if !bytes.Equal(parent.firstChild.key, child1.key) {
+			t.Errorf("unexpected key: got:%q, want:%q", parent.firstChild.key, child1.key)
 		}
 	}
 
@@ -100,34 +97,37 @@ func TestAddChild(t *testing.T) {
 	{
 		parent.addChild(child2)
 
-		if len(parent.children) != 2 {
-			t.Errorf("unexpected len: got:%d, want:2", len(parent.children))
+		if parent.numChildren != 2 {
+			t.Errorf("unexpected len: got:%d, want:2", parent.numChildren)
 		}
 
-		expected := [][]byte{[]byte("apple"), []byte("banana")}
+		expectedKeys := [][]byte{[]byte("apple"), []byte("banana")}
 
-		for i, child := range parent.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
+		i := 0
+		for child := parent.firstChild; child != nil; child = child.nextSibling {
+			if !bytes.Equal(child.key, expectedKeys[i]) {
+				t.Errorf("unexpected child, got:%q, want:%q", child.key, expectedKeys[i])
 			}
+			i++
 		}
-
 	}
 
 	// Test with a child that should sit in-between the 2 existing nodes.
 	{
 		parent.addChild(child3)
 
-		if len(parent.children) != 3 {
-			t.Errorf("unexpected len: got:%d, want:3", len(parent.children))
+		if parent.numChildren != 3 {
+			t.Errorf("unexpected len: got:%d, want:3", parent.numChildren)
 		}
 
-		expected := [][]byte{[]byte("apple"), []byte("avocado"), []byte("banana")}
+		expectedKeys := [][]byte{[]byte("apple"), []byte("avocado"), []byte("banana")}
 
-		for i, child := range parent.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
+		i := 0
+		for child := parent.firstChild; child != nil; child = child.nextSibling {
+			if !bytes.Equal(child.key, expectedKeys[i]) {
+				t.Errorf("unexpected child, got:%q, want:%q", child.key, expectedKeys[i])
 			}
+			i++
 		}
 	}
 
@@ -135,16 +135,18 @@ func TestAddChild(t *testing.T) {
 	{
 		parent.addChild(child4)
 
-		if len(parent.children) != 4 {
-			t.Errorf("unexpected len: got:%d, want:4", len(parent.children))
+		if parent.numChildren != 4 {
+			t.Errorf("unexpected len: got:%d, want:4", parent.numChildren)
 		}
 
-		expected := [][]byte{[]byte("alpha"), []byte("apple"), []byte("avocado"), []byte("banana")}
+		expectedKeys := [][]byte{[]byte("alpha"), []byte("apple"), []byte("avocado"), []byte("banana")}
 
-		for i, child := range parent.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
+		i := 0
+		for child := parent.firstChild; child != nil; child = child.nextSibling {
+			if !bytes.Equal(child.key, expectedKeys[i]) {
+				t.Errorf("unexpected child, got:%q, want:%q", child.key, expectedKeys[i])
 			}
+			i++
 		}
 	}
 
@@ -152,16 +154,18 @@ func TestAddChild(t *testing.T) {
 	{
 		parent.addChild(child5)
 
-		if len(parent.children) != 5 {
-			t.Errorf("unexpected len: got:%d, want:5", len(parent.children))
+		if parent.numChildren != 5 {
+			t.Errorf("unexpected len: got:%d, want:5", parent.numChildren)
 		}
 
-		expected := [][]byte{[]byte("alpha"), []byte("apple"), []byte("avocado"), []byte("banana"), []byte("carrot")}
+		expectedKeys := [][]byte{[]byte("alpha"), []byte("apple"), []byte("avocado"), []byte("banana"), []byte("carrot")}
 
-		for i, child := range parent.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
+		i := 0
+		for child := parent.firstChild; child != nil; child = child.nextSibling {
+			if !bytes.Equal(child.key, expectedKeys[i]) {
+				t.Errorf("unexpected child, got:%q, want:%q", child.key, expectedKeys[i])
 			}
+			i++
 		}
 	}
 
@@ -170,16 +174,18 @@ func TestAddChild(t *testing.T) {
 	{
 		parent.addChild(&node{key: []byte("apple")})
 
-		if len(parent.children) != 6 {
-			t.Errorf("unexpected len: got:%d, want:5", len(parent.children))
+		if parent.numChildren != 6 {
+			t.Errorf("unexpected len: got:%d, want:6", parent.numChildren)
 		}
 
-		expected := [][]byte{[]byte("alpha"), []byte("apple"), []byte("apple"), []byte("avocado"), []byte("banana"), []byte("carrot")}
+		expectedKeys := [][]byte{[]byte("alpha"), []byte("apple"), []byte("apple"), []byte("avocado"), []byte("banana"), []byte("carrot")}
 
-		for i, child := range parent.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
+		i := 0
+		for child := parent.firstChild; child != nil; child = child.nextSibling {
+			if !bytes.Equal(child.key, expectedKeys[i]) {
+				t.Errorf("unexpected child, got:%q, want:%q", child.key, expectedKeys[i])
 			}
+			i++
 		}
 	}
 }
@@ -204,16 +210,18 @@ func TestRemoveChild(t *testing.T) {
 			t.Errorf("unexpected error: got:%v, want:nil", err)
 		}
 
-		expected := [][]byte{[]byte("apple"), []byte("cherry"), []byte("durian")}
+		expectedKeys := [][]byte{[]byte("apple"), []byte("cherry"), []byte("durian")}
 
-		if len(subject.children) != len(expected) {
-			t.Errorf("unexpected child count: got:%d, want:%d", len(subject.children), len(expected))
+		if subject.numChildren != uint16(len(expectedKeys)) {
+			t.Errorf("unexpected child count: got:%d, want:%d", subject.numChildren, len(expectedKeys))
 		}
 
-		for i, child := range subject.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
+		i := 0
+		for child := subject.firstChild; child != nil; child = child.nextSibling {
+			if !bytes.Equal(child.key, expectedKeys[i]) {
+				t.Errorf("unexpected child, got:%q, want:%q", child.key, expectedKeys[i])
 			}
+			i++
 		}
 	}
 
@@ -234,16 +242,18 @@ func TestRemoveChild(t *testing.T) {
 			t.Errorf("unexpected error: got:%v, want:nil", err)
 		}
 
-		expected := [][]byte{[]byte("cherry")}
+		expectedKeys := [][]byte{[]byte("cherry")}
 
-		if len(subject.children) != len(expected) {
-			t.Errorf("unexpected child count: got:%d, want:%d", len(subject.children), len(expected))
+		if subject.numChildren != uint16(len(expectedKeys)) {
+			t.Errorf("unexpected child count: got:%d, want:%d", subject.numChildren, len(expectedKeys))
 		}
 
-		for i, child := range subject.children {
-			if !bytes.Equal(child.key, expected[i]) {
-				t.Errorf("unexpected child, got:%q, want:%q", child.key, expected[i])
+		i := 0
+		for child := subject.firstChild; child != nil; child = child.nextSibling {
+			if !bytes.Equal(child.key, expectedKeys[i]) {
+				t.Errorf("unexpected child, got:%q, want:%q", child.key, expectedKeys[i])
 			}
+			i++
 		}
 	}
 
@@ -253,8 +263,8 @@ func TestRemoveChild(t *testing.T) {
 			t.Errorf("unexpected error: got:%v, want:nil", err)
 		}
 
-		if len(subject.children) != 0 {
-			t.Errorf("unexpected child count: got:%d, want:0", len(subject.children))
+		if subject.numChildren != 0 {
+			t.Errorf("unexpected child count: got:%d, want:0", subject.numChildren)
 		}
 	}
 }
@@ -359,7 +369,6 @@ func TestSerializeWithoutKey(t *testing.T) {
 		key:      []byte("apple"),
 		data:     []byte("sauce"),
 		isRecord: true,
-		children: nil,
 	}
 
 	subject.addChild(&node{key: []byte("test-1")})
@@ -409,18 +418,18 @@ func TestSerializeWithoutKey(t *testing.T) {
 	}
 
 	// Reconstruct the child count.
-	var numChildren uint64
+	var numChildren uint16
 
 	if err := binary.Read(reader, binary.LittleEndian, &numChildren); err != nil {
 		t.Fatalf("failed to read child count: %v", err)
 	}
 
-	if want := uint64(len(subject.children)); want != numChildren {
+	if want := subject.numChildren; want != numChildren {
 		t.Errorf("unexpected child count, got:%d, want:%d", numChildren, want)
 	}
 
-	// Verify that the child offset region is reserved.
-	expectedReservedSpace := numChildren * sizeOfUint64
+	// Verify that the child offset region (firstChild + nextSibling) is reserved.
+	expectedReservedSpace := sizeOfUint64 * 2
 
 	if remaining := reader.Len(); remaining != int(expectedReservedSpace) {
 		t.Errorf("unexpected child offset region size, got:%d, want:%d", remaining, expectedReservedSpace)
@@ -432,7 +441,6 @@ func TestSerializeWithoutKey(t *testing.T) {
 			key:      []byte("banana"),
 			data:     []byte("smoothie"),
 			isRecord: true,
-			children: nil,
 		}
 
 		subject.updateChecksum()
@@ -451,7 +459,6 @@ func TestSerializedSize(t *testing.T) {
 		key:      []byte("apple"),
 		data:     []byte("sauce"),
 		isRecord: true,
-		children: nil,
 	}
 
 	src.addChild(&node{key: []byte("cherry")})
@@ -481,7 +488,6 @@ func TestAsDescriptor(t *testing.T) {
 		key:      []byte("apple"),
 		data:     []byte("sauce"),
 		isRecord: true,
-		children: nil,
 	}
 
 	src.addChild(&node{key: []byte("cherry")})
@@ -501,12 +507,12 @@ func TestAsDescriptor(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if int(subject.numChildren) != len(src.children) {
-		t.Fatalf("numChildren mismatch, got:%d, want:%d", subject.numChildren, len(src.children))
+	if int(subject.numChildren) != int(src.numChildren) {
+		t.Fatalf("numChildren mismatch, got:%d, want:%d", subject.numChildren, src.numChildren)
 	}
 
-	if cap(subject.childOffsets) != len(src.children) {
-		t.Fatalf("unexpected childOffsets capacity, got:%d, want:%d", cap(subject.childOffsets), len(src.children))
+	if cap(subject.childOffsets) != int(src.numChildren) {
+		t.Fatalf("unexpected childOffsets capacity, got:%d, want:%d", cap(subject.childOffsets), src.numChildren)
 	}
 
 	if int(subject.dataLen) != len(src.data) {

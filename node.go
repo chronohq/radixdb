@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"hash/crc32"
-	"sort"
 )
 
 // node represents an in-memory node of a Radix tree. This implementation
@@ -14,11 +13,13 @@ import (
 // Adding fields to this struct can significantly increase memory overhead.
 // Think carefully before adding anything to the struct.
 type node struct {
-	key      []byte  // Path segment of the node.
-	isRecord bool    // True if node is a record; false if path component.
-	isBlob   bool    // True if the value is stored in the blob store.
-	children []*node // Pointers to child nodes.
-	checksum uint32  // CRC32 checksum of the node content.
+	key         []byte // Path segment of the node.
+	isRecord    bool   // True if node is a record; false if path component.
+	isBlob      bool   // True if the value is stored in the blob store.
+	firstChild  *node  // Pointer to the first child, if any.
+	nextSibling *node  // Pointer to the next sibling, if any.
+	numChildren uint16 // Number of children.
+	checksum    uint32 // CRC32 checksum of the node content.
 
 	// Holds the content of the node. Values less than or equal to 32-bytes
 	// are stored directly in this byte slice. Otherwise, it holds the blobID
@@ -28,12 +29,12 @@ type node struct {
 
 // hasChidren returns true if the receiver node has children.
 func (n node) hasChildren() bool {
-	return len(n.children) > 0
+	return n.firstChild != nil
 }
 
 // isLeaf returns true if the receiver node is a leaf node.
 func (n node) isLeaf() bool {
-	return len(n.children) == 0
+	return n.firstChild == nil
 }
 
 // value retrieves the record value of the node. If the value is stored in the
@@ -67,8 +68,9 @@ func (n node) serializedSize() int {
 	// variable-length value
 	ret += len(n.data)
 
-	// child offsets of 8-byte slots
-	ret += len(n.children) * sizeOfUint64
+	// firstChild and nextSibling offsets
+	ret += sizeOfUint64
+	ret += sizeOfUint64
 
 	// serialized node checksum
 	ret += sizeOfUint32
@@ -80,7 +82,7 @@ func (n node) serializedSize() int {
 // It returns the first child node that shares a common prefix. If no child is
 // found, the function returns nil.
 func (n node) findCompatibleChild(key []byte) *node {
-	for _, child := range n.children {
+	for child := n.firstChild; child != nil; child = child.nextSibling {
 		prefix := longestCommonPrefix(child.key, key)
 
 		if len(prefix) > 0 {
@@ -94,54 +96,87 @@ func (n node) findCompatibleChild(key []byte) *node {
 // findChild returns the node's child that matches the given key.
 // If not found, an ErrKeyNotFound error is returned.
 func (n node) findChild(key []byte) (*node, int, error) {
-	index := sort.Search(len(n.children), func(i int) bool {
-		return bytes.Compare(n.children[i].key, key) >= 0
-	})
+	// TODO: This index likely only makes sense with the legacy children
+	// slice. Investigate if it can be removed.
+	index := 0
 
-	if index >= len(n.children) || longestCommonPrefix(n.children[index].key, key) == nil {
-		return nil, -1, ErrKeyNotFound
+	for child := n.firstChild; child != nil; child = child.nextSibling {
+		if bytes.Equal(child.key, key) {
+			return child, index, nil
+		}
+
+		index++
 	}
 
-	return n.children[index], index, nil
+	return nil, -1, ErrKeyNotFound
 }
 
-// addChild efficiently adds the given child to the node's children slice
-// while preserving lexicographic order based on the child's key.
+// addChild efficiently adds the given child to the node's children while
+// preserving lexicographic order based on the child's key. The children
+// form a singly-linked list starting from firstChild and connected via
+// nextSibling pointers.
 func (n *node) addChild(child *node) {
-	// Binary search for the correct position to insert the new child.
-	// This is faster than appending the child and then calling sort.Slice().
-	index := sort.Search(len(n.children), func(i int) bool {
-		return bytes.Compare(n.children[i].key, child.key) >= 0
-	})
+	n.numChildren++
 
-	// Expand the slice by one element, making room for the new child.
-	n.children = append(n.children, nil)
+	// If the node has no children, the new child becomes the firstChild.
+	if n.firstChild == nil {
+		n.firstChild = child
+		return
+	}
 
-	// Shift elements to the right to make space at the index.
-	copy(n.children[index+1:], n.children[index:])
+	// The new child's key value is less than the firstChild's key. Therefore
+	// the new child takes place of the firstChild's place, and the firstChild
+	// becomes the nextSibling of the new child.
+	if bytes.Compare(child.key, n.firstChild.key) < 0 {
+		child.nextSibling = n.firstChild
+		n.firstChild = child
+		return
+	}
 
-	// Insert the child in its correct position.
-	n.children[index] = child
+	// Reaching here means that the new child's key value is greater than the
+	// firstChild's key. Search for a sibling that has a greater value than the
+	// new child's key. If found, the new child takes place before that sibling
+	// by updating the previous sibling's nextSibling pointer.
+	current := n.firstChild
+
+	for current.nextSibling != nil && bytes.Compare(current.nextSibling.key, child.key) < 0 {
+		current = current.nextSibling
+	}
+
+	child.nextSibling = current.nextSibling
+	current.nextSibling = child
 }
 
-// removeChild removes a child from the node's (sorted) children slice. It does
-// so by identifying the index of the child using binary search.
+// removeChild removes a child from the node's linked-list of children slice.
 func (n *node) removeChild(child *node) error {
-	index := sort.Search(len(n.children), func(i int) bool {
-		return bytes.Compare(n.children[i].key, child.key) >= 0
-	})
-
-	if index >= len(n.children) || longestCommonPrefix(n.children[index].key, child.key) == nil {
+	if n.firstChild == nil {
 		return ErrKeyNotFound
 	}
 
-	// Remove the child node at the index by shifting the elements after the
-	// index to the left. In other words, the shift overwrites the child node.
-	// We then truncate the slice by one element to remove the empty space.
-	copy(n.children[index:], n.children[index+1:])
-	n.children = n.children[:len(n.children)-1]
+	// Removing the first child: nextSibling takes over its place.
+	if bytes.Equal(n.firstChild.key, child.key) {
+		n.firstChild = n.firstChild.nextSibling
+		n.numChildren--
 
-	return nil
+		return nil
+	}
+
+	current := n.firstChild
+
+	for current.nextSibling != nil {
+		next := current.nextSibling
+
+		if bytes.Equal(next.key, child.key) {
+			current.nextSibling = next.nextSibling
+			n.numChildren--
+
+			return nil
+		}
+
+		current = next
+	}
+
+	return ErrKeyNotFound
 }
 
 // calculateChecksum calculates the CRC32 checksum of the receiver node.
@@ -211,7 +246,8 @@ func (n *node) shallowCopyFrom(src *node) {
 	n.data = src.data
 	n.isBlob = src.isBlob
 	n.isRecord = src.isRecord
-	n.children = src.children
+	n.firstChild = src.firstChild
+	n.nextSibling = src.nextSibling
 
 	n.updateChecksum()
 }
@@ -266,7 +302,7 @@ func (n node) asDescriptor() (persistentNode, error) {
 		ret.flags |= flagHasBlob
 	}
 
-	if len(n.children) > maxChildPerNode {
+	if n.numChildren > maxChildPerNode {
 		return ret, ErrInvalidIndex
 	}
 
@@ -274,8 +310,8 @@ func (n node) asDescriptor() (persistentNode, error) {
 		return ret, ErrInvalidIndex
 	}
 
-	ret.childOffsets = make([]uint64, len(n.children))
-	ret.numChildren = uint16(len(n.children))
+	ret.childOffsets = make([]uint64, n.numChildren)
+	ret.numChildren = n.numChildren
 	ret.keyLen = uint16(len(n.key))
 	ret.dataLen = uint32(len(n.data))
 	ret.key = n.key
@@ -319,19 +355,19 @@ func (n node) serializeWithoutKey() ([]byte, error) {
 	}
 
 	// Step 3: Serialize the number of children.
-	numChildren := uint64(len(n.children))
+	numChildren := n.numChildren
 
 	if err := binary.Write(&buf, binary.LittleEndian, numChildren); err != nil {
 		return nil, err
 	}
 
-	// Step 4: Reserve the space to hold the child node offsets.
-	tmpOffset := uint64(0)
+	// Step 4: Reserve the space to hold the offsets for firstChild and nextSibling.
+	if err := binary.Write(&buf, binary.LittleEndian, uint64(0)); err != nil {
+		return nil, err
+	}
 
-	for i := 0; i < int(numChildren); i++ {
-		if err := binary.Write(&buf, binary.LittleEndian, tmpOffset); err != nil {
-			return nil, err
-		}
+	if err := binary.Write(&buf, binary.LittleEndian, uint64(0)); err != nil {
+		return nil, err
 	}
 
 	return buf.Bytes(), nil
