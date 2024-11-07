@@ -13,3 +13,28 @@ var (
 	// ErrKeyNotFound is returned when the key does not exist in the index.
 	ErrKeyNotFound = errors.New("key not found")
 )
+
+// longestCommonPrefix compares the two given byte slices, and returns the
+// longest common prefix. Memory-safety is ensured by establishing an index
+// boundary based on the length of the shorter parameter.
+func longestCommonPrefix(a, b []byte) []byte {
+	minLen := len(a)
+
+	if len(b) < minLen {
+		minLen = len(b)
+	}
+
+	var i int
+
+	for i = 0; i < minLen; i++ {
+		if a[i] != b[i] {
+			break
+		}
+	}
+
+	if i == 0 {
+		return nil
+	}
+
+	return a[:i]
+}
