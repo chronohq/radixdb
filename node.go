@@ -22,6 +22,11 @@ type node struct {
 	data []byte
 }
 
+// isLeaf returns true if the receiver node is a leaf node.
+func (n node) isLeaf() bool {
+	return n.firstChild == nil
+}
+
 // forEachChild loops over the children of the node, and calls the given
 // callback function on each visit.
 func (n node) forEachChild(cb func(int, *node) error) error {
@@ -51,6 +56,11 @@ func (n node) findChild(key []byte) (*node, error) {
 	}
 
 	return nil, ErrKeyNotFound
+}
+
+// setKey updates the node's key with the provided value.
+func (n *node) setKey(key []byte) {
+	n.key = key
 }
 
 // addChild inserts the given child into the node's sorted linked-list of
