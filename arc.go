@@ -26,6 +26,11 @@ type Arc struct {
 	mu         sync.RWMutex // RWLock for concurrency management.
 }
 
+// New returns an empty Arc database handler.
+func New() *Arc {
+	return &Arc{}
+}
+
 // Len returns the number of records.
 func (a *Arc) Len() int {
 	a.mu.RLock()
@@ -63,8 +68,10 @@ func (a *Arc) splitNode(parent *node, current *node, newNode *node, commonPrefix
 	parent.removeChild(current)
 	parent.addChild(newParent)
 
-	// The current node is unlinked from its parent, and it is now safe to
-	// modify its key. Remove the common prefix from current and newNode.
+	// Reset current's nextSibling in prep for becoming a child of newParent.
+	current.nextSibling = nil
+
+	// Remove the common prefix from current and newNode.
 	current.setKey(current.key[len(commonPrefix):])
 	newNode.setKey(newNode.key[len(commonPrefix):])
 
