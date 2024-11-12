@@ -5,6 +5,7 @@ package arc
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -76,6 +77,10 @@ func TestSplitNode(t *testing.T) {
 			return nil
 		})
 
+		if testing.Verbose() {
+			fmt.Println("--")
+			arc.DebugPrint()
+		}
 	}
 
 	// Test non-root split using the "app" -> "store" node.
@@ -106,6 +111,11 @@ func TestSplitNode(t *testing.T) {
 		expectedKey = []byte("rawberry")
 		if !bytes.Equal(strawberryNode.key, expectedKey) {
 			t.Errorf("unexpected key: got:%q, want:%q", current.key, expectedKey)
+		}
+
+		if testing.Verbose() {
+			fmt.Println("--")
+			arc.DebugPrint()
 		}
 	}
 }
