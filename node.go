@@ -58,9 +58,28 @@ func (n node) findChild(key []byte) (*node, error) {
 	return nil, ErrKeyNotFound
 }
 
+// findCompatibleChild returns the first child that shares a common prefix.
+func (n node) findCompatibleChild(key []byte) *node {
+	for child := n.firstChild; child != nil; child = child.nextSibling {
+		prefix := longestCommonPrefix(child.key, key)
+
+		if len(prefix) > 0 {
+			return child
+		}
+	}
+
+	return nil
+}
+
 // setKey updates the node's key with the provided value.
 func (n *node) setKey(key []byte) {
 	n.key = key
+}
+
+// setValue sets the given value to the node and flags it as a record node.
+func (n *node) setValue(value []byte) {
+	n.data = value
+	n.isRecord = true
 }
 
 // addChild inserts the given child into the node's sorted linked-list of
