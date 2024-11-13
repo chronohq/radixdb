@@ -182,6 +182,29 @@ func (a *Arc) Put(key []byte, value []byte) error {
 	}
 }
 
+// Get retrieves the value that matches the given key. Returns ErrKeyNotFound
+// if the key does not exist.
+func (a *Arc) Get(key []byte) ([]byte, error) {
+	if key == nil {
+		return nil, ErrNilKey
+	}
+
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	node, _, err := a.findNodeAndParent(key)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !node.isRecord {
+		return nil, ErrKeyNotFound
+	}
+
+	return node.data, nil
+}
+
 // splitNode splits a node based on a common prefix by creating an intermediate
 // parent node. For the root node, it simply creates a new parent. For non-root
 // nodes, it updates the parent-child relationships before modifying the node
@@ -223,6 +246,56 @@ func (a *Arc) splitNode(parent *node, current *node, newNode *node, commonPrefix
 
 	a.numNodes += 2
 	a.numRecords++
+}
+
+// findNodeAndParent returns the node that matches the given key and its parent.
+// The parent is nil if the discovered node is a root node.
+func (a *Arc) findNodeAndParent(key []byte) (current *node, parent *node, err error) {
+	if key == nil {
+		return nil, nil, ErrNilKey
+	}
+
+	if a.empty() {
+		return nil, nil, ErrKeyNotFound
+	}
+
+	current = a.root
+
+	for {
+		prefix := longestCommonPrefix(current.key, key)
+		prefixLen := len(prefix)
+
+		// Lack of a common prefix means that the key does not exist in the
+		// tree, unless the current node is a root node.
+		if prefix == nil && current != a.root {
+			return nil, nil, ErrKeyNotFound
+		}
+
+		// Common prefix must be at least the length of the current key.
+		// If not, the search key cannot exist in a Radix tree.
+		if prefixLen != len(current.key) {
+			return nil, nil, ErrKeyNotFound
+		}
+
+		// The prefix matches the current node's key.
+		if prefixLen == len(key) {
+			return current, parent, nil
+		}
+
+		if !current.hasChildren() {
+			return nil, nil, ErrKeyNotFound
+		}
+
+		// Update the key for the next iteration, and then continue traversing.
+		key = key[len(prefix):]
+		parent = current
+		current = current.findCompatibleChild(key)
+
+		// The key does not exist if a compatible child is not found.
+		if current == nil {
+			return nil, nil, ErrKeyNotFound
+		}
+	}
 }
 
 // longestCommonPrefix compares the two given byte slices, and returns the

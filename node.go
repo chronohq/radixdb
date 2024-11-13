@@ -22,6 +22,11 @@ type node struct {
 	data []byte
 }
 
+// hasChidren returns true if the receiver node has children.
+func (n node) hasChildren() bool {
+	return n.firstChild != nil
+}
+
 // isLeaf returns true if the receiver node is a leaf node.
 func (n node) isLeaf() bool {
 	return n.firstChild == nil

@@ -374,7 +374,7 @@ func TestPut(t *testing.T) {
 			}
 
 			if len(levels[level]) != len(testNodes) {
-				t.Fatalf("unexpected level (%d) node count, got:%d, want:%d",
+				t.Fatalf("unexpected level (%d) node count: got:%d, want:%d",
 					level, len(levels[level]), len(testNodes))
 			}
 
@@ -398,16 +398,43 @@ func TestPut(t *testing.T) {
 				}
 
 				if got.isRecord != want.isRecord {
-					t.Fatalf("unexpected isRecord value (%q), got: %t, want:%t", got.key, got.isRecord, want.isRecord)
+					t.Fatalf("unexpected isRecord value (%q): got: %t, want:%t", got.key, got.isRecord, want.isRecord)
 				}
 
 				if got.numChildren != want.numChildren {
-					t.Fatalf("unexpected child count (%q), got:%d, want:%d", got.key, got.numChildren, want.numChildren)
+					t.Fatalf("unexpected child count (%q): got:%d, want:%d", got.key, got.numChildren, want.numChildren)
 				}
 			}
 		}
 
 		printIndex(arc)
+	}
+}
+
+func TestGet(t *testing.T) {
+	arc := basicTestTree()
+
+	// Test that all known keys are available.
+	for _, known := range basicTestTreeData() {
+		value, err := arc.Get(known.key)
+
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		if !bytes.Equal(value, known.data) {
+			t.Errorf("unexpected value: got:%q, want:%q", value, known.data)
+		}
+	}
+
+	// Test a key that do not exist.
+	if _, err := arc.Get([]byte("bogus")); err != ErrKeyNotFound {
+		t.Errorf("unexpected error: got:%v, want:%v", err, ErrKeyNotFound)
+	}
+
+	// Test nil key.
+	if _, err := arc.Get(nil); err != ErrNilKey {
+		t.Errorf("unexpected error: got:%v, want:%v", err, ErrNilKey)
 	}
 }
 
@@ -442,6 +469,62 @@ func collectNodesByLevel(root *node) [][]*node {
 	}
 
 	return levels
+}
+
+// Expected tree structure:
+// .
+// ├─ ap ("<nil>")
+// │  ├─ pl ("<nil>")
+// │  │  ├─ e ("cider")
+// │  │  │  └─ t ("java")
+// │  │  └─ ication ("framework")
+// │  └─ ricot ("fruit")
+// ├─ b ("<nil>")
+// │  ├─ an ("<nil>")
+// │  │  ├─ ana ("ripe")
+// │  │  └─ d ("practice")
+// │  │    ├─ age ("medical")
+// │  │    └─ saw ("cut")
+// │  ├─ erry ("sweet")
+// │  └─ lueberry ("jam")
+// ├─ grape ("vine")
+// │  └─ fruit ("citrus")
+// ├─ l ("<nil>")
+// │  ├─ emon ("sour")
+// │  │  └─ ade ("refreshing")
+// │  └─ ime ("green")
+// │    └─ stone ("concrete")
+// └─ orange ("juice")
+func basicTestTree() *Arc {
+	arc := New()
+
+	for _, row := range basicTestTreeData() {
+		arc.Put(row.key, row.data)
+	}
+
+	return arc
+}
+
+func basicTestTreeData() []node {
+	return []node{
+		{key: []byte("grape"), data: []byte("vine")},
+		{key: []byte("bandsaw"), data: []byte("cut")},
+		{key: []byte("applet"), data: []byte("java")},
+		{key: []byte("grapefruit"), data: []byte("citrus")},
+		{key: []byte("apple"), data: []byte("cider")},
+		{key: []byte("banana"), data: []byte("ripe")},
+		{key: []byte("apricot"), data: []byte("fruit")},
+		{key: []byte("bandage"), data: []byte("first-aid")},
+		{key: []byte("blueberry"), data: []byte("jam")},
+		{key: []byte("lemon"), data: []byte("sour")},
+		{key: []byte("berry"), data: []byte("sweet")},
+		{key: []byte("lime"), data: []byte("green")},
+		{key: []byte("lemonade"), data: []byte("refreshing")},
+		{key: []byte("application"), data: []byte("framework")},
+		{key: []byte("limestone"), data: []byte("concrete")},
+		{key: []byte("orange"), data: []byte("juice")},
+		{key: []byte("band"), data: []byte("practice")},
+	}
 }
 
 type nodeTestCase struct {
