@@ -5,7 +5,7 @@ package arc
 
 import (
 	"bytes"
-	"fmt"
+	"encoding/hex"
 	"testing"
 )
 
@@ -109,6 +109,7 @@ func TestSplitNode(t *testing.T) {
 		}
 	}
 }
+
 func TestPut(t *testing.T) {
 	// Test using keys that do not share any prefix.
 	{
@@ -126,7 +127,7 @@ func TestPut(t *testing.T) {
 
 		for _, record := range records {
 			if err := arc.Put(record.key, record.value); err != nil {
-				t.Errorf("unexpected error:%v", err)
+				t.Errorf("unexpected error: %v", err)
 			}
 		}
 
@@ -155,8 +156,6 @@ func TestPut(t *testing.T) {
 
 			return nil
 		})
-
-		printIndex(arc)
 	}
 
 	// Test using similar keys.
@@ -274,8 +273,6 @@ func TestPut(t *testing.T) {
 				}
 			}
 		}
-
-		printIndex(arc)
 	}
 
 	// Test using similar keys that require tricky restructing and splitting.
@@ -389,12 +386,8 @@ func TestPut(t *testing.T) {
 					t.Fatalf("unexpected value: got:%q, want:%q", got.data, want.value)
 				}
 
-				if got.firstChild != nil && want.isLeaf {
-					t.Fatalf("expected %q to be a leaf node", got.key)
-				}
-
-				if got.firstChild == nil && !want.isLeaf {
-					t.Fatalf("expected %q to be a non-leaf node", got.key)
+				if got.isLeaf() != want.isLeaf {
+					t.Fatalf("unexpected isLeaf: got:%t, want:%t", got.isLeaf(), want.isLeaf)
 				}
 
 				if got.isRecord != want.isRecord {
@@ -406,8 +399,87 @@ func TestPut(t *testing.T) {
 				}
 			}
 		}
+	}
 
-		printIndex(arc)
+	// Test using keys that can mess up the root level restructing.
+	// Specifically by matching "e2" after the first byte.
+	{
+		keys := []string{
+			"35e2ac5f198beea10f1e8abf296b9bb9",
+			"35642e6d587bcdffeb28a33bd1cb6c73",
+			"e28a9e6d2f747e3a421646ca5c8f3c0b",
+		}
+
+		arc := New()
+
+		for _, key := range keys {
+			k, _ := hex.DecodeString(key)
+
+			if err := arc.Put(k, nil); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		}
+
+		for _, key := range keys {
+			k, _ := hex.DecodeString(key)
+
+			if _, err := arc.Get(k); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		}
+
+		tests := [][]nodeTestCase{
+			// Level 0
+			{
+				{key: []byte(nil), isLeaf: false, isRecord: false, numChildren: 2},
+			},
+			// Level 1
+			{
+				{key: []byte("35"), isLeaf: false, isRecord: false, numChildren: 2},
+				{key: []byte("e28a9e6d2f747e3a421646ca5c8f3c0b"), isLeaf: true, isRecord: true, numChildren: 0},
+			},
+			// Level 2
+			{
+				{key: []byte("642e6d587bcdffeb28a33bd1cb6c73"), isLeaf: true, isRecord: true, numChildren: 0},
+				{key: []byte("e2ac5f198beea10f1e8abf296b9bb9"), isLeaf: true, isRecord: true, numChildren: 0},
+			},
+		}
+
+		levels := collectNodesByLevel(arc.root)
+
+		for level, testNodes := range tests {
+			if level >= len(levels) {
+				t.Fatalf("invalid level: %d", level)
+			}
+
+			if len(levels[level]) != len(testNodes) {
+				t.Fatalf("unexpected level (%d) node count: got:%d, want:%d",
+					level, len(levels[level]), len(testNodes))
+			}
+
+			for i, want := range testNodes {
+				got := levels[level][i]
+
+				gotKey := hex.EncodeToString(got.key)
+				wantKey := string(want.key)
+
+				if gotKey != wantKey {
+					t.Fatalf("unexpected key: got:%q, want:%q", gotKey, wantKey)
+				}
+
+				if got.isLeaf() != want.isLeaf {
+					t.Fatalf("unexpected isLeaf: got:%t, want:%t", got.isLeaf(), want.isLeaf)
+				}
+
+				if got.isRecord != want.isRecord {
+					t.Fatalf("unexpected isRecord: got: %t, want:%t", got.isRecord, want.isRecord)
+				}
+
+				if got.numChildren != want.numChildren {
+					t.Fatalf("unexpected numChildren: got:%d, want:%d", got.numChildren, want.numChildren)
+				}
+			}
+		}
 	}
 }
 
@@ -435,13 +507,6 @@ func TestGet(t *testing.T) {
 	// Test nil key.
 	if _, err := arc.Get(nil); err != ErrNilKey {
 		t.Errorf("unexpected error: got:%v, want:%v", err, ErrNilKey)
-	}
-}
-
-func printIndex(a *Arc) {
-	if testing.Verbose() {
-		fmt.Println("---")
-		a.DebugPrint()
 	}
 }
 

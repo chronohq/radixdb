@@ -90,6 +90,22 @@ func (a *Arc) Put(key []byte, value []byte) error {
 		return nil
 	}
 
+	// Given key does not share a common prefix with the existing root node
+	// that holds a non-nil key. Make newNode and the current root siblings
+	// under a new nil-key root node whose purpose is to group top-level keys.
+	if len(a.root.key) > 0 && longestCommonPrefix(a.root.key, key) == nil {
+		oldRoot := a.root
+
+		a.root = &node{key: nil}
+		a.root.addChild(oldRoot)
+		a.root.addChild(newNode)
+
+		a.numNodes += 2
+		a.numRecords++
+
+		return nil
+	}
+
 	var parent *node
 	var current = a.root
 
