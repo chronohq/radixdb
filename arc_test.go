@@ -5,7 +5,10 @@ package arc
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"testing"
 )
 
@@ -534,6 +537,47 @@ func collectNodesByLevel(root *node) [][]*node {
 	}
 
 	return levels
+}
+
+func FuzzPutGet(f *testing.F) {
+	f.Fuzz(func(t *testing.T, n uint32, keySeed []byte) {
+		if len(keySeed) == 0 {
+			t.Skip("empty keySeed: skipping fuzz case")
+		}
+
+		arc := New()
+
+		keys := make([][]byte, 0, n)
+
+		// Build test keys deterministically.
+		for i := 0; i < int(n); i++ {
+			buf := make([]byte, 4)
+			binary.LittleEndian.PutUint32(buf, uint32(i))
+			seed := append(keySeed, buf...)
+			key := sha256.Sum256(seed)
+			keys = append(keys, key[:])
+		}
+
+		// Build the database.
+		for _, key := range keys {
+			if err := arc.Put(key, nil); err != nil {
+				t.Fatalf("fuzzing Put() failed: %v", err)
+			}
+		}
+
+		// Test that all keys are retrievable.
+		for _, key := range keys {
+			_, err := arc.Get(key)
+
+			if err != nil {
+				if errors.Is(err, ErrKeyNotFound) {
+					t.Fatalf("missing key: %q", hex.EncodeToString(key))
+				} else {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		}
+	})
 }
 
 // Expected tree structure:
