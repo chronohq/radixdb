@@ -114,3 +114,22 @@ func TestRemoveChild(t *testing.T) {
 		}
 	}
 }
+
+func TestPrependKey(t *testing.T) {
+	subject := &node{key: []byte("child")}
+
+	prefix := []byte("parent-")
+	expected := []byte("parent-child")
+
+	subject.prependKey(prefix)
+
+	if !bytes.Equal(subject.key, expected) {
+		t.Errorf("unexpected result, got:%q, want:%q", subject.key, expected)
+	}
+
+	subject.prependKey(nil)
+
+	if !bytes.Equal(subject.key, expected) {
+		t.Errorf("unexpected result, got:%q, want:%q", subject.key, expected)
+	}
+}

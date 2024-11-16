@@ -87,6 +87,20 @@ func (n *node) setValue(value []byte) {
 	n.isRecord = true
 }
 
+// prependKey prepends the given prefix to the node's existing key.
+func (n *node) prependKey(prefix []byte) {
+	if len(prefix) == 0 {
+		return
+	}
+
+	newKey := make([]byte, len(prefix)+len(n.key))
+
+	copy(newKey, prefix)
+	copy(newKey[len(prefix):], n.key)
+
+	n.key = newKey
+}
+
 // addChild inserts the given child into the node's sorted linked-list of
 // children. Children are maintained in ascending order by their key values.
 func (n *node) addChild(child *node) {
