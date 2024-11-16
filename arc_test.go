@@ -114,375 +114,272 @@ func TestSplitNode(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
-	// Test using keys that do not share any prefix.
-	{
-		records := []struct {
-			key   []byte
-			value []byte
-		}{
-			{[]byte("apple"), []byte("1")},
-			{[]byte("citron"), []byte("3")},
-			{[]byte("durian"), []byte("4")},
-			{[]byte("banana"), []byte("2")},
-		}
+	testCases := []struct {
+		name           string
+		records        []testNode
+		expectedLevels [][]testNode
+		numNodes       int
+		numRecords     int
+	}{
+		{
+			name: "with no common prefix",
+			records: []testNode{
+				{key: []byte("apple"), value: []byte("1")},
+				{key: []byte("citron"), value: []byte("3")},
+				{key: []byte("durian"), value: []byte("4")},
+				{key: []byte("banana"), value: []byte("2")},
+			},
+			// Expected tree structure:
+			//
+			// .
+			// ├─ apple ("1")
+			// ├─ banana ("2")
+			// ├─ citron ("3")
+			// └─ durian ("4")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: nil, isLeaf: false, isRecord: false, numChildren: 4},
+				},
+				// Level 1
+				{
+					{key: []byte("apple"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("banana"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("citron"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("durian"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   5,
+			numRecords: 4,
+		},
+		{
+			name: "with similar keys",
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("app"), value: []byte("6")},
+				{key: []byte("apple"), value: []byte("7")},
+				{key: []byte("approved"), value: []byte("12")},
+				{key: []byte("apply"), value: []byte("10")},
+				{key: []byte("apex"), value: []byte("4")},
+				{key: []byte("application"), value: []byte("9")},
+				{key: []byte("apology"), value: []byte("5")},
+				{key: []byte("appointment"), value: []byte("11")},
+				{key: []byte("appliance"), value: []byte("8")},
+				{key: []byte("ap"), value: []byte("3")},
+				{key: []byte("android"), value: []byte("2")},
+			},
+			// Expected tree structure:
+			//
+			// a ("1")
+			// ├─ ndroid ("2")
+			// └─ p ("3")
+			//    ├─ ex ("4")
+			//    ├─ ology ("5")
+			//    └─ p ("6")
+			//       ├─ l ("<nil>")
+			//       │  ├─ e ("7")
+			//       │  ├─ i ("<nil>")
+			//       │  │  ├─ ance ("8")
+			//       │  │  └─ cation ("9")
+			//       │  └─ y ("10")
+			//       ├─ ointment ("11")
+			//       └─ roved ("12")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("a"), isLeaf: false, isRecord: true, numChildren: 2},
+				},
+				// Level 1
+				{
+					{key: []byte("ndroid"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("p"), isLeaf: false, isRecord: true, numChildren: 3},
+				},
+				// Level 2
+				{
+					{key: []byte("ex"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("ology"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("p"), isLeaf: false, isRecord: true, numChildren: 3},
+				},
+				// Level 3
+				{
+					{key: []byte("l"), isLeaf: false, isRecord: false, numChildren: 3},
+					{key: []byte("ointment"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("roved"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+				// Level 4
+				{
+					{key: []byte("e"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("i"), isLeaf: false, isRecord: false, numChildren: 2},
+					{key: []byte("y"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+				// Level 5
+				{
+					{key: []byte("ance"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("cation"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   14,
+			numRecords: 12,
+		},
+		{
+			name: "with complex keys",
+			records: []testNode{
+				{key: []byte("ax"), value: []byte("1")},
+				{key: []byte("axb"), value: []byte("2")},
+				{key: []byte("axby"), value: []byte("3")},
+				{key: []byte("axbyz"), value: []byte("4")},
+				{key: []byte("axbyza"), value: []byte("5")},
+				{key: []byte("axbyzab"), value: []byte("6")},
+				{key: []byte("axy"), value: []byte("7")},
+				{key: []byte("axyb"), value: []byte("8")},
+				{key: []byte("axybz"), value: []byte("9")},
+				{key: []byte("axybza"), value: []byte("10")},
+				{key: []byte("axyz"), value: []byte("11")},
+				{key: []byte("axyza"), value: []byte("12")},
+				{key: []byte("axyzab"), value: []byte("13")},
+				{key: []byte("axyzb"), value: []byte("14")},
+				{key: []byte("axyzba"), value: []byte("15")},
+			},
+			// Expected tree structure:
+			//
+			// ax ("1")
+			// ├─ b ("2")
+			// │  └─ y ("3")
+			// │     └─ z ("4")
+			// │        └─ a ("5")
+			// │           └─ b ("6")
+			// └─ y ("7")
+			//    ├─ b ("8")
+			//    │  └─ z ("9")
+			//    │     └─ a ("10")
+			//    └─ z ("11")
+			//       ├─ a ("12")
+			//       │  └─ b ("13")
+			//       └─ b ("14")
+			//          └─ a ("15")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("ax"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 2},
+				},
+				// Level 1
+				{
+					{key: []byte("b"), value: []byte("2"), isLeaf: false, isRecord: true, numChildren: 1},
+					{key: []byte("y"), value: []byte("7"), isLeaf: false, isRecord: true, numChildren: 2},
+				},
+				// Level 2
+				{
+					{key: []byte("y"), value: []byte("3"), isLeaf: false, isRecord: true, numChildren: 1},
+					{key: []byte("b"), value: []byte("8"), isLeaf: false, isRecord: true, numChildren: 1},
+					{key: []byte("z"), value: []byte("11"), isLeaf: false, isRecord: true, numChildren: 2},
+				},
+				// Level 3
+				{
+					{key: []byte("z"), value: []byte("4"), isLeaf: false, isRecord: true, numChildren: 1},
+					{key: []byte("z"), value: []byte("9"), isLeaf: false, isRecord: true, numChildren: 1},
+					{key: []byte("a"), value: []byte("12"), isLeaf: false, isRecord: true, numChildren: 1},
+					{key: []byte("b"), value: []byte("14"), isLeaf: false, isRecord: true, numChildren: 1},
+				},
+				// Level 4
+				{
+					{key: []byte("a"), value: []byte("5"), isLeaf: false, isRecord: true, numChildren: 1},
+					{key: []byte("a"), value: []byte("10"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("b"), value: []byte("13"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("a"), value: []byte("15"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+				// Level 5
+				{
+					{key: []byte("b"), value: []byte("6"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   15,
+			numRecords: 15,
+		},
+		{
+			name: "with single byte prefix difference",
+			records: []testNode{
+				{key: []byte("35e2ac5f198beea10f1e8abf296b9bb9"), value: nil},
+				{key: []byte("35642e6d587bcdffeb28a33bd1cb6c73"), value: nil},
+				{key: []byte("e28a9e6d2f747e3a421646ca5c8f3c0b"), value: nil},
+			},
+			// Expected tree structure:
+			//
+			// .
+			// ├─ 35 ("<nil>")
+			// │  ├─ 642e6d587bcdffeb28a33bd1cb6c73 ("<nil>")
+			// │  └─ e2ac5f198beea10f1e8abf296b9bb9 ("<nil>")
+			// └─ e28a9e6d2f747e3a421646ca5c8f3c0b ("<nil>")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte(nil), isLeaf: false, isRecord: false, numChildren: 2},
+				},
+				// Level 1
+				{
+					{key: []byte("35"), isLeaf: false, isRecord: false, numChildren: 2},
+					{key: []byte("e28a9e6d2f747e3a421646ca5c8f3c0b"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+				// Level 2
+				{
+					{key: []byte("642e6d587bcdffeb28a33bd1cb6c73"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("e2ac5f198beea10f1e8abf296b9bb9"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   5,
+			numRecords: 3,
+		},
+	}
 
-		arc := New()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			arc := New()
 
-		for _, record := range records {
-			if err := arc.Put(record.key, record.value); err != nil {
-				t.Errorf("unexpected error: %v", err)
+			for _, record := range tc.records {
+				if err := arc.Put(record.key, record.value); err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
 			}
-		}
 
-		expectedKeys := [][]byte{[]byte("apple"), []byte("banana"), []byte("citron"), []byte("durian")}
-
-		if arc.numNodes != len(expectedKeys)+1 {
-			t.Fatalf("unexpected numNodes, got:%d, want:%d", arc.numNodes, len(expectedKeys)+1)
-		}
-
-		if arc.numRecords != len(expectedKeys) {
-			t.Fatalf("unexpected numNodes, got:%d, want:%d", arc.numRecords, len(expectedKeys))
-		}
-
-		if arc.root.numChildren != len(expectedKeys) {
-			t.Fatalf("unexpected numChildren, got:%d, want:3", arc.root.numChildren)
-		}
-
-		arc.root.forEachChild(func(i int, n *node) error {
-			if !bytes.Equal(n.key, expectedKeys[i]) {
-				t.Fatalf("unexpected key: got:%q, want:%q", n.key, expectedKeys[i])
+			if arc.numNodes != tc.numNodes {
+				t.Fatalf("unexpected numNodes, got:%d, want:%d", arc.numNodes, tc.numNodes)
 			}
 
-			if !n.isLeaf() {
-				t.Fatalf("expected %q to be a leaf node", n.key)
+			if arc.numRecords != tc.numRecords {
+				t.Fatalf("unexpected numRecords, got:%d, want:%d", arc.numRecords, tc.numRecords)
 			}
 
-			return nil
+			nodesByLevel := collectNodesByLevel(arc.root)
+
+			if len(nodesByLevel) != len(tc.expectedLevels) {
+				t.Fatalf("unexpected tree depth: got:%d, want:%d", len(nodesByLevel), len(tc.expectedLevels))
+			}
+
+			for level, wantNodes := range tc.expectedLevels {
+				if len(wantNodes) != len(nodesByLevel[level]) {
+					t.Fatalf("invalid node count on level:%d, got:%d, want:%d", level, len(wantNodes), len(nodesByLevel[level]))
+				}
+
+				for i, want := range wantNodes {
+					got := nodesByLevel[level][i]
+
+					if !bytes.Equal(got.key, want.key) {
+						t.Fatalf("unexpected key: got:%q, want:%q", got.key, want.key)
+					}
+
+					if got.isLeaf() != want.isLeaf {
+						t.Fatalf("unexpected isLeaf: got:%t, want:%t", got.isLeaf(), want.isLeaf)
+					}
+
+					if got.isRecord != want.isRecord {
+						t.Fatalf("unexpected isRecord: got: %t, want:%t", got.isRecord, want.isRecord)
+					}
+
+					if got.numChildren != want.numChildren {
+						t.Fatalf("unexpected numChildren: got:%d, want:%d", got.numChildren, want.numChildren)
+					}
+				}
+			}
 		})
-	}
-
-	// Test using similar keys.
-	{
-		records := []struct {
-			key   []byte
-			value []byte
-		}{
-			{[]byte("a"), []byte("1")},
-			{[]byte("app"), []byte("6")},
-			{[]byte("apple"), []byte("7")},
-			{[]byte("approved"), []byte("12")},
-			{[]byte("apply"), []byte("10")},
-			{[]byte("apex"), []byte("4")},
-			{[]byte("application"), []byte("9")},
-			{[]byte("apology"), []byte("5")},
-			{[]byte("appointment"), []byte("11")},
-			{[]byte("appliance"), []byte("8")},
-			{[]byte("ap"), []byte("3")},
-			{[]byte("android"), []byte("2")},
-		}
-
-		arc := New()
-
-		for _, record := range records {
-			if err := arc.Put(record.key, record.value); err != nil {
-				t.Errorf("unexpected error:%v", err)
-			}
-		}
-
-		// Expected tree structure:
-		//
-		// a ("1")
-		// ├─ ndroid ("2")
-		// └─ p ("3")
-		//    ├─ ex ("4")
-		//    ├─ ology ("5")
-		//    └─ p ("6")
-		//       ├─ l ("<nil>")
-		//       │  ├─ e ("7")
-		//       │  ├─ i ("<nil>")
-		//       │  │  ├─ ance ("8")
-		//       │  │  └─ cation ("9")
-		//       │  └─ y ("10")
-		//       ├─ ointment ("11")
-		//       └─ roved ("12")
-		tests := [][]nodeTestCase{
-			// Level 0
-			{
-				{key: []byte("a"), isLeaf: false, isRecord: true, numChildren: 2},
-			},
-			// Level 1
-			{
-				{key: []byte("ndroid"), isLeaf: true, isRecord: true, numChildren: 0},
-				{key: []byte("p"), isLeaf: false, isRecord: true, numChildren: 3},
-			},
-			// Level 2
-			{
-				{key: []byte("ex"), isLeaf: true, isRecord: true, numChildren: 0},
-				{key: []byte("ology"), isLeaf: true, isRecord: true, numChildren: 0},
-				{key: []byte("p"), isLeaf: false, isRecord: true, numChildren: 3},
-			},
-			// Level 3
-			{
-				{key: []byte("l"), isLeaf: false, isRecord: false, numChildren: 3},
-				{key: []byte("ointment"), isLeaf: true, isRecord: true, numChildren: 0},
-				{key: []byte("roved"), isLeaf: true, isRecord: true, numChildren: 0},
-			},
-			// Level 4
-			{
-				{key: []byte("e"), isLeaf: true, isRecord: true, numChildren: 0},
-				{key: []byte("i"), isLeaf: false, isRecord: false, numChildren: 2},
-				{key: []byte("y"), isLeaf: true, isRecord: true, numChildren: 0},
-			},
-			// Level 5
-			{
-				{key: []byte("ance"), isLeaf: true, isRecord: true, numChildren: 0},
-				{key: []byte("cation"), isLeaf: true, isRecord: true, numChildren: 0},
-			},
-		}
-
-		levels := collectNodesByLevel(arc.root)
-
-		for level, testNodes := range tests {
-			if level >= len(levels) {
-				t.Fatalf("invalid level: %d", level)
-			}
-
-			if len(levels[level]) != len(testNodes) {
-				t.Fatalf("unexpected level (%d) node count, got:%d, want:%d",
-					level, len(levels[level]), len(testNodes))
-			}
-
-			for i, want := range testNodes {
-				got := levels[level][i]
-
-				if !bytes.Equal(got.key, want.key) {
-					t.Fatalf("unexpected key: got:%q, want:%q", got.key, want.key)
-				}
-
-				if got.firstChild != nil && want.isLeaf {
-					t.Fatalf("expected %q to be a leaf node", got.key)
-				}
-
-				if got.firstChild == nil && !want.isLeaf {
-					t.Fatalf("expected %q to be a non-leaf node", got.key)
-				}
-
-				if got.isRecord != want.isRecord {
-					t.Fatalf("unexpected isRecord value (%q), got: %t, want:%t", got.key, got.isRecord, want.isRecord)
-				}
-
-				if got.numChildren != want.numChildren {
-					t.Fatalf("unexpected child count (%q), got:%d, want:%d", got.key, got.numChildren, want.numChildren)
-				}
-			}
-		}
-	}
-
-	// Test using similar keys that require tricky restructing and splitting.
-	{
-		records := []struct {
-			key   []byte
-			value []byte
-		}{
-			{[]byte("ax"), []byte("1")},
-			{[]byte("axb"), []byte("2")},
-			{[]byte("axby"), []byte("3")},
-			{[]byte("axbyz"), []byte("4")},
-			{[]byte("axbyza"), []byte("5")},
-			{[]byte("axbyzab"), []byte("6")},
-
-			// Start right branch.
-			{[]byte("axy"), []byte("7")},
-			{[]byte("axyb"), []byte("8")},
-			{[]byte("axybz"), []byte("9")},
-			{[]byte("axybza"), []byte("10")},
-
-			// Build out right branch.
-			{[]byte("axyz"), []byte("11")},
-			{[]byte("axyza"), []byte("12")},
-			{[]byte("axyzab"), []byte("13")},
-			{[]byte("axyzb"), []byte("14")},
-			{[]byte("axyzba"), []byte("15")},
-		}
-
-		arc := New()
-
-		for _, record := range records {
-			if err := arc.Put(record.key, record.value); err != nil {
-				t.Errorf("unexpected error:%v", err)
-			}
-		}
-
-		// Expected tree structure:
-		//
-		// ax ("1")
-		// ├─ b ("2")
-		// │  └─ y ("3")
-		// │     └─ z ("4")
-		// │        └─ a ("5")
-		// │           └─ b ("6")
-		// └─ y ("7")
-		//    ├─ b ("8")
-		//    │  └─ z ("9")
-		//    │     └─ a ("10")
-		//    └─ z ("11")
-		//       ├─ a ("12")
-		//       │  └─ b ("13")
-		//       └─ b ("14")
-		//          └─ a ("15")
-		tests := [][]nodeTestCase{
-			// Level 0
-			{
-				{key: []byte("ax"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 2},
-			},
-			// Level 1
-			{
-				{key: []byte("b"), value: []byte("2"), isLeaf: false, isRecord: true, numChildren: 1},
-				{key: []byte("y"), value: []byte("7"), isLeaf: false, isRecord: true, numChildren: 2},
-			},
-			// Level 2
-			{
-				{key: []byte("y"), value: []byte("3"), isLeaf: false, isRecord: true, numChildren: 1},
-				{key: []byte("b"), value: []byte("8"), isLeaf: false, isRecord: true, numChildren: 1},
-				{key: []byte("z"), value: []byte("11"), isLeaf: false, isRecord: true, numChildren: 2},
-			},
-			// Level 3
-			{
-				{key: []byte("z"), value: []byte("4"), isLeaf: false, isRecord: true, numChildren: 1},
-				{key: []byte("z"), value: []byte("9"), isLeaf: false, isRecord: true, numChildren: 1},
-				{key: []byte("a"), value: []byte("12"), isLeaf: false, isRecord: true, numChildren: 1},
-				{key: []byte("b"), value: []byte("14"), isLeaf: false, isRecord: true, numChildren: 1},
-			},
-			// Level 4
-			{
-				{key: []byte("a"), value: []byte("5"), isLeaf: false, isRecord: true, numChildren: 1},
-				{key: []byte("a"), value: []byte("10"), isLeaf: true, isRecord: true, numChildren: 0},
-				{key: []byte("b"), value: []byte("13"), isLeaf: true, isRecord: true, numChildren: 0},
-				{key: []byte("a"), value: []byte("15"), isLeaf: true, isRecord: true, numChildren: 0},
-			},
-			// Level 4
-			{
-				{key: []byte("b"), value: []byte("6"), isLeaf: true, isRecord: true, numChildren: 0},
-			},
-		}
-
-		levels := collectNodesByLevel(arc.root)
-
-		for level, testNodes := range tests {
-			if level >= len(levels) {
-				t.Fatalf("invalid level: %d", level)
-			}
-
-			if len(levels[level]) != len(testNodes) {
-				t.Fatalf("unexpected level (%d) node count: got:%d, want:%d",
-					level, len(levels[level]), len(testNodes))
-			}
-
-			for i, want := range testNodes {
-				got := levels[level][i]
-
-				if !bytes.Equal(got.key, want.key) {
-					t.Fatalf("unexpected key: got:%q, want:%q", got.key, want.key)
-				}
-
-				if !bytes.Equal(got.data, want.value) {
-					t.Fatalf("unexpected value: got:%q, want:%q", got.data, want.value)
-				}
-
-				if got.isLeaf() != want.isLeaf {
-					t.Fatalf("unexpected isLeaf: got:%t, want:%t", got.isLeaf(), want.isLeaf)
-				}
-
-				if got.isRecord != want.isRecord {
-					t.Fatalf("unexpected isRecord value (%q): got: %t, want:%t", got.key, got.isRecord, want.isRecord)
-				}
-
-				if got.numChildren != want.numChildren {
-					t.Fatalf("unexpected child count (%q): got:%d, want:%d", got.key, got.numChildren, want.numChildren)
-				}
-			}
-		}
-	}
-
-	// Test using keys that can mess up the root level restructing.
-	// Specifically by matching "e2" after the first byte.
-	{
-		keys := []string{
-			"35e2ac5f198beea10f1e8abf296b9bb9",
-			"35642e6d587bcdffeb28a33bd1cb6c73",
-			"e28a9e6d2f747e3a421646ca5c8f3c0b",
-		}
-
-		arc := New()
-
-		for _, key := range keys {
-			k, _ := hex.DecodeString(key)
-
-			if err := arc.Put(k, nil); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-		}
-
-		for _, key := range keys {
-			k, _ := hex.DecodeString(key)
-
-			if _, err := arc.Get(k); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-		}
-
-		tests := [][]nodeTestCase{
-			// Level 0
-			{
-				{key: []byte(nil), isLeaf: false, isRecord: false, numChildren: 2},
-			},
-			// Level 1
-			{
-				{key: []byte("35"), isLeaf: false, isRecord: false, numChildren: 2},
-				{key: []byte("e28a9e6d2f747e3a421646ca5c8f3c0b"), isLeaf: true, isRecord: true, numChildren: 0},
-			},
-			// Level 2
-			{
-				{key: []byte("642e6d587bcdffeb28a33bd1cb6c73"), isLeaf: true, isRecord: true, numChildren: 0},
-				{key: []byte("e2ac5f198beea10f1e8abf296b9bb9"), isLeaf: true, isRecord: true, numChildren: 0},
-			},
-		}
-
-		levels := collectNodesByLevel(arc.root)
-
-		for level, testNodes := range tests {
-			if level >= len(levels) {
-				t.Fatalf("invalid level: %d", level)
-			}
-
-			if len(levels[level]) != len(testNodes) {
-				t.Fatalf("unexpected level (%d) node count: got:%d, want:%d",
-					level, len(levels[level]), len(testNodes))
-			}
-
-			for i, want := range testNodes {
-				got := levels[level][i]
-
-				gotKey := hex.EncodeToString(got.key)
-				wantKey := string(want.key)
-
-				if gotKey != wantKey {
-					t.Fatalf("unexpected key: got:%q, want:%q", gotKey, wantKey)
-				}
-
-				if got.isLeaf() != want.isLeaf {
-					t.Fatalf("unexpected isLeaf: got:%t, want:%t", got.isLeaf(), want.isLeaf)
-				}
-
-				if got.isRecord != want.isRecord {
-					t.Fatalf("unexpected isRecord: got: %t, want:%t", got.isRecord, want.isRecord)
-				}
-
-				if got.numChildren != want.numChildren {
-					t.Fatalf("unexpected numChildren: got:%d, want:%d", got.numChildren, want.numChildren)
-				}
-			}
-		}
 	}
 }
 
@@ -636,7 +533,7 @@ func basicTestTreeData() []node {
 	}
 }
 
-type nodeTestCase struct {
+type testNode struct {
 	key         []byte
 	value       []byte
 	isLeaf      bool

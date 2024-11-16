@@ -116,6 +116,10 @@ func (a *Arc) Put(key []byte, value []byte) error {
 		// Found exact match. Put() will overwrite the existing value.
 		// Do not update counters because this is an in-place update.
 		if prefixLen == len(current.key) && prefixLen == len(newNode.key) {
+			if !current.isRecord {
+				a.numRecords++
+			}
+
 			current.setValue(value)
 
 			return nil
