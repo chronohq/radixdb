@@ -417,6 +417,177 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	testCases := []struct {
+		name           string
+		deletionKey    []byte
+		records        []testNode
+		expectedLevels [][]testNode
+		numNodes       int
+		numRecords     int
+	}{
+		{
+			name:        "delete root with no children",
+			deletionKey: []byte("a"),
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+			},
+			expectedLevels: [][]testNode{},
+			numNodes:       0,
+			numRecords:     0,
+		},
+		{
+			name:        "delete root with single leaf child",
+			deletionKey: []byte("a"),
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("aa"), value: []byte("2")},
+			},
+			// Expected tree structure after deletion:
+			//
+			// aa ("2")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("aa"), value: []byte("2"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   1,
+			numRecords: 1,
+		},
+		{
+			name:        "delete root with single non-leaf child",
+			deletionKey: []byte("a"),
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("ab"), value: []byte("2")},
+				{key: []byte("abc"), value: []byte("3")},
+			},
+			// Expected tree structure after deletion:
+			//
+			//ab ("2")
+			//└─ c ("3")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("ab"), value: []byte("2"), isLeaf: false, isRecord: true, numChildren: 1},
+				},
+				// Level 1
+				{
+					{key: []byte("c"), value: []byte("3"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   2,
+			numRecords: 2,
+		},
+		{
+			name:        "delete root with multiple children",
+			deletionKey: []byte("a"),
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("ab"), value: []byte("2")},
+				{key: []byte("ac"), value: []byte("3")},
+				{key: []byte("ad"), value: []byte("4")},
+			},
+			// Expected tree structure after deletion. Structure remains the
+			// same, but the root node is no longer a record node:
+			//
+			// a ("<nil>")
+			// ├─ b ("2")
+			// ├─ c ("3")
+			// └─ d ("4")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("a"), value: nil, isLeaf: false, isRecord: false, numChildren: 3},
+				},
+				// Level 1
+				{
+					{key: []byte("b"), value: []byte("2"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("c"), value: []byte("3"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("d"), value: []byte("4"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   4,
+			numRecords: 3,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			arc := New()
+
+			for _, record := range tc.records {
+				if err := arc.Put(record.key, record.value); err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			}
+
+			if err := arc.Delete(tc.deletionKey); err != nil {
+				t.Fatalf("unexpected deletion error: %v", err)
+			}
+
+			if arc.numNodes != tc.numNodes {
+				t.Fatalf("unexpected numNodes, got:%d, want:%d", arc.numNodes, tc.numNodes)
+			}
+
+			if arc.numRecords != tc.numRecords {
+				t.Fatalf("unexpected numRecords, got:%d, want:%d", arc.numRecords, tc.numRecords)
+			}
+
+			nodesByLevel := collectNodesByLevel(arc.root)
+
+			if len(nodesByLevel) != len(tc.expectedLevels) {
+				t.Fatalf("unexpected tree depth: got:%d, want:%d", len(nodesByLevel), len(tc.expectedLevels))
+			}
+
+			for level, wantNodes := range tc.expectedLevels {
+				if len(wantNodes) != len(nodesByLevel[level]) {
+					t.Fatalf("invalid node count on level:%d, got:%d, want:%d", level, len(wantNodes), len(nodesByLevel[level]))
+				}
+				for i, want := range wantNodes {
+					got := nodesByLevel[level][i]
+
+					if !bytes.Equal(got.key, want.key) {
+						t.Fatalf("unexpected key: got:%q, want:%q", got.key, want.key)
+					}
+
+					if got.isLeaf() != want.isLeaf {
+						t.Fatalf("unexpected isLeaf: got:%t, want:%t", got.isLeaf(), want.isLeaf)
+					}
+
+					if got.isRecord != want.isRecord {
+						t.Fatalf("unexpected isRecord: got: %t, want:%t", got.isRecord, want.isRecord)
+					}
+
+					if got.numChildren != want.numChildren {
+						t.Fatalf("unexpected numChildren: got:%d, want:%d", got.numChildren, want.numChildren)
+					}
+				}
+			}
+
+			// Ensure that all known keys are fetchable via the public API.
+			for _, record := range tc.records {
+				if bytes.Equal(tc.deletionKey, record.key) {
+					continue
+				}
+
+				if _, err := arc.Get(record.key); err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+
+	t.Run("with nil key", func(t *testing.T) {
+		arc := New()
+
+		if err := arc.Delete(nil); err != ErrNilKey {
+			t.Fatalf("unexpected result, got:%v, want:%v", err, ErrNilKey)
+		}
+	})
+}
+
 func collectNodesByLevel(root *node) [][]*node {
 	if root == nil {
 		return nil
