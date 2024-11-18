@@ -13,6 +13,9 @@ import (
 )
 
 var (
+	// ErrCorrupted is returned when a database corruption is detected.
+	ErrCorrupted = errors.New("database corruption detected")
+
 	// ErrKeyNotFound is returned when the key does not exist in the index.
 	ErrKeyNotFound = errors.New("key not found")
 
@@ -223,6 +226,76 @@ func (a *Arc) Get(key []byte) ([]byte, error) {
 	}
 
 	return node.data, nil
+}
+
+// Delete removes a record that matches the given key.
+func (a *Arc) Delete(key []byte) error {
+	if key == nil {
+		return ErrNilKey
+	}
+
+	if a.empty() {
+		return ErrKeyNotFound
+	}
+
+	if len(key) > maxKeyBytes {
+		return ErrKeyTooLarge
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	delNode, parent, err := a.findNodeAndParent(key)
+
+	if err != nil {
+		return err
+	}
+
+	if !delNode.isRecord {
+		return ErrKeyNotFound
+	}
+
+	// Root node deletion is handled separately to improve code readability.
+	if delNode == a.root {
+		a.deleteRootNode()
+		return nil
+	}
+
+	// If the deletion node is not a root node, its parent must be non-nil.
+	if parent == nil {
+		return ErrCorrupted
+	}
+
+	return nil
+}
+
+// deleteRootNode removes the root node from the tree, while ensuring that
+// the tree structure remains valid and consistent.
+func (a *Arc) deleteRootNode() {
+	if a.root.isLeaf() {
+		a.clear()
+		return
+	}
+
+	if a.root.numChildren == 1 {
+		// The root node only has one child, which will become the new root.
+		child := a.root.firstChild
+		child.prependKey(a.root.key)
+
+		a.root = child
+
+		// Decrement for the original root node removal.
+		a.numNodes--
+
+	} else {
+		// The root node has multiple children, thus it must continue to exist
+		// for the tree to sustain its structure. Convert it to a non-record
+		// node by removing its value and flagging it as a non-record node.
+		a.root.isRecord = false
+		a.root.data = nil
+	}
+
+	a.numRecords--
 }
 
 // Clear wipes the database from memory.
