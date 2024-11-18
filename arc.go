@@ -225,6 +225,21 @@ func (a *Arc) Get(key []byte) ([]byte, error) {
 	return node.data, nil
 }
 
+// Clear wipes the database from memory.
+func (a *Arc) Clear() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.clear()
+}
+
+// clear wipes the in-memory tree, and resets metadata.
+func (a *Arc) clear() {
+	a.root = nil
+	a.numNodes = 0
+	a.numRecords = 0
+}
+
 // splitNode splits a node based on a common prefix by creating an intermediate
 // parent node. For the root node, it simply creates a new parent. For non-root
 // nodes, it updates the parent-child relationships before modifying the node
