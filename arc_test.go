@@ -420,15 +420,15 @@ func TestGet(t *testing.T) {
 func TestDelete(t *testing.T) {
 	testCases := []struct {
 		name           string
-		deletionKey    []byte
+		deletionKeys   [][]byte
 		records        []testNode
 		expectedLevels [][]testNode
 		numNodes       int
 		numRecords     int
 	}{
 		{
-			name:        "delete root with no children",
-			deletionKey: []byte("a"),
+			name:         "delete root with no children",
+			deletionKeys: [][]byte{[]byte("a")},
 			records: []testNode{
 				{key: []byte("a"), value: []byte("1")},
 			},
@@ -437,8 +437,8 @@ func TestDelete(t *testing.T) {
 			numRecords:     0,
 		},
 		{
-			name:        "delete root with single leaf child",
-			deletionKey: []byte("a"),
+			name:         "delete root with single leaf child",
+			deletionKeys: [][]byte{[]byte("a")},
 			records: []testNode{
 				{key: []byte("a"), value: []byte("1")},
 				{key: []byte("aa"), value: []byte("2")},
@@ -456,8 +456,8 @@ func TestDelete(t *testing.T) {
 			numRecords: 1,
 		},
 		{
-			name:        "delete root with single non-leaf child",
-			deletionKey: []byte("a"),
+			name:         "delete root with single non-leaf child",
+			deletionKeys: [][]byte{[]byte("a")},
 			records: []testNode{
 				{key: []byte("a"), value: []byte("1")},
 				{key: []byte("ab"), value: []byte("2")},
@@ -481,8 +481,8 @@ func TestDelete(t *testing.T) {
 			numRecords: 2,
 		},
 		{
-			name:        "delete root with multiple children",
-			deletionKey: []byte("a"),
+			name:         "delete root with multiple children",
+			deletionKeys: [][]byte{[]byte("a")},
 			records: []testNode{
 				{key: []byte("a"), value: []byte("1")},
 				{key: []byte("ab"), value: []byte("2")},
@@ -511,6 +511,203 @@ func TestDelete(t *testing.T) {
 			numNodes:   4,
 			numRecords: 3,
 		},
+		{
+			name: "delete internal node with single child",
+			// Test tree structure:
+			//
+			// .
+			// ├─ ap ("1")
+			// │  └─ p ("2")
+			// │    └─ le ("3")
+			// │      └─ sauce ("4")
+			// └─ banana ("5")
+			deletionKeys: [][]byte{[]byte("app")},
+			records: []testNode{
+				{key: []byte("ap"), value: []byte("1")},
+				{key: []byte("app"), value: []byte("2")},
+				{key: []byte("apple"), value: []byte("3")},
+				{key: []byte("applesauce"), value: []byte("4")},
+				{key: []byte("banana"), value: []byte("5")},
+			},
+			// Expected tree structure after deletion:
+			// .
+			// ├─ ap ("1")
+			// │  └─ ple ("3")
+			// │    └─ sauce ("4")
+			// └─ banana ("5")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: nil, value: nil, isLeaf: false, isRecord: false, numChildren: 2},
+				},
+				// Level 1
+				{
+					{key: []byte("ap"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 1},
+					{key: []byte("banana"), value: []byte("5"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+				// Level 2
+				{
+					{key: []byte("ple"), value: []byte("3"), isLeaf: false, isRecord: true, numChildren: 1},
+				},
+				// Level 3
+				{
+					{key: []byte("sauce"), value: []byte("4"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   5,
+			numRecords: 4,
+		},
+		{
+			name:         "delete leaf node from single child root",
+			deletionKeys: [][]byte{[]byte("aa")},
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("aa"), value: []byte("2")},
+			},
+			// Expected tree structure after deletion:
+			//
+			// a ("1")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("a"), value: []byte("1"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   1,
+			numRecords: 1,
+		},
+		{
+			name:         "delete leaf node from multi child root",
+			deletionKeys: [][]byte{[]byte("ab")},
+			// Test tree structure:
+			//
+			// a ("1")
+			// ├─ a ("2")
+			// ├─ b ("3")
+			// └─ c ("4")
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("aa"), value: []byte("2")},
+				{key: []byte("ab"), value: []byte("3")},
+				{key: []byte("ac"), value: []byte("4")},
+			},
+			// Expected tree structure after deletion:
+			//
+			// a ("1")
+			// ├─ a ("2")
+			// └─ c ("4"
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("a"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 2},
+				},
+				// Level 1
+				{
+					{key: []byte("a"), value: []byte("2"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("c"), value: []byte("4"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   3,
+			numRecords: 3,
+		},
+		{
+			name:         "delete all leaf nodes from root node",
+			deletionKeys: [][]byte{[]byte("aa"), []byte("ab"), []byte("ac")},
+			// Test tree structure:
+			//
+			// a ("1")
+			// ├─ a ("2")
+			// ├─ b ("3")
+			// └─ c ("4")
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("aa"), value: []byte("2")},
+				{key: []byte("ab"), value: []byte("3")},
+				{key: []byte("ac"), value: []byte("4")},
+			},
+			// Expected tree structure after deletion:
+			//
+			// a ("1")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("a"), value: []byte("1"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   1,
+			numRecords: 1,
+		},
+		{
+			name:         "delete leaf node from multi level tree",
+			deletionKeys: [][]byte{[]byte("aac"), []byte("aba")},
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("aa"), value: []byte("2")},
+				{key: []byte("aab"), value: []byte("3")},
+				{key: []byte("aac"), value: []byte("4")},
+				{key: []byte("ab"), value: []byte("5")},
+				{key: []byte("aba"), value: []byte("6")},
+			},
+			// Expected tree structure after deletion:
+			//
+			// a ("1")
+			// ├─ a ("2")
+			// │  └─ b ("3")
+			// └─ b ("5")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("a"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 2},
+				},
+				// Level 1
+				{
+					{key: []byte("a"), value: []byte("2"), isLeaf: false, isRecord: true, numChildren: 1},
+					{key: []byte("b"), value: []byte("5"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+				// Level 2
+				{
+					{key: []byte("b"), value: []byte("3"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   4,
+			numRecords: 4,
+		},
+		{
+			name:         "delete leaf node from two child non-record parent",
+			deletionKeys: [][]byte{[]byte("apple")},
+			// Test tree structure:
+			//
+			// a ("1")
+			// └─ p ("<nil>")
+			//   ├─ ple ("2")
+			//   └─ ricot ("3")
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("apple"), value: []byte("2")},
+				{key: []byte("apricot"), value: []byte("3")},
+			},
+			// Removal of the "ple" node has left the non-record parent: "p"
+			// with one child: "ricot". This means that the parent node is
+			// now reundant, and therefore the "p" and "ricot" nodes should
+			// be merged, forming a "pricot" node containing "ricot" data.
+			//
+			// Expected tree structure after deletion:
+			//
+			// a ("1")
+			// └─ pricot ("3")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("a"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 1},
+				},
+				// Level 1
+				{
+					{key: []byte("pricot"), value: []byte("3"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   2,
+			numRecords: 2,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -523,8 +720,10 @@ func TestDelete(t *testing.T) {
 				}
 			}
 
-			if err := arc.Delete(tc.deletionKey); err != nil {
-				t.Fatalf("unexpected deletion error: %v", err)
+			for _, deletionKey := range tc.deletionKeys {
+				if err := arc.Delete(deletionKey); err != nil {
+					t.Fatalf("unexpected deletion error: %v", err)
+				}
 			}
 
 			if arc.numNodes != tc.numNodes {
@@ -568,11 +767,20 @@ func TestDelete(t *testing.T) {
 
 			// Ensure that all known keys are fetchable via the public API.
 			for _, record := range tc.records {
-				if bytes.Equal(tc.deletionKey, record.key) {
-					continue
+				var expected error
+				var deletedKey bool
+
+				for _, deletionKey := range tc.deletionKeys {
+					if bytes.Equal(deletionKey, record.key) {
+						deletedKey = true
+					}
 				}
 
-				if _, err := arc.Get(record.key); err != nil {
+				if deletedKey {
+					expected = ErrKeyNotFound
+				}
+
+				if _, err := arc.Get(record.key); err != expected {
 					t.Fatalf("unexpected error: %v", err)
 				}
 			}

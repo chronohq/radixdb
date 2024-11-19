@@ -266,6 +266,53 @@ func (a *Arc) Delete(key []byte) error {
 		return ErrCorrupted
 	}
 
+	// The deletion node only has one child. Therefore the child will take
+	// place of the deletion node, after inheriting deletion node's key.
+	if delNode.numChildren == 1 {
+		if err := parent.removeChild(delNode); err != nil {
+			return err
+		}
+
+		child := delNode.firstChild
+		child.prependKey(delNode.key)
+		parent.addChild(child)
+
+		a.numNodes--
+		a.numRecords--
+
+		return nil
+	}
+
+	// In most cases, deleting a leaf node is simply a matter of removing it
+	// from its parent.  However, if the parent is a non-record node and the
+	// deletion leaves it with only a single child, we must merge the nodes.
+	if delNode.isLeaf() {
+		if err := parent.removeChild(delNode); err != nil {
+			return err
+		}
+
+		a.numNodes--
+		a.numRecords--
+
+		// The deletion had left the non-record parent with one child. This
+		// means that the parent node is now redundant. Therefore merge the
+		// parent and the only-child nodes.
+		if !parent.isRecord && parent.numChildren == 1 {
+			child := parent.firstChild
+			child.prependKey(parent.key)
+
+			// We do not have access to the grandparent, therefore shallow copy
+			// the child node's information to the parent node. This effectively
+			// replaces parent with child within the index tree structure.
+			parent.shallowCopyFrom(child)
+
+			// Decrement for removing the parent node.
+			a.numNodes--
+		}
+
+		return nil
+	}
+
 	return nil
 }
 
