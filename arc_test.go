@@ -137,11 +137,9 @@ func TestPut(t *testing.T) {
 			// ├─ citron ("3")
 			// └─ durian ("4")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: nil, isLeaf: false, isRecord: false, numChildren: 4},
 				},
-				// Level 1
 				{
 					{key: []byte("apple"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("banana"), isLeaf: true, isRecord: true, numChildren: 0},
@@ -185,34 +183,28 @@ func TestPut(t *testing.T) {
 			//       ├─ ointment ("11")
 			//       └─ roved ("12")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("a"), isLeaf: false, isRecord: true, numChildren: 2},
 				},
-				// Level 1
 				{
 					{key: []byte("ndroid"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("p"), isLeaf: false, isRecord: true, numChildren: 3},
 				},
-				// Level 2
 				{
 					{key: []byte("ex"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("ology"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("p"), isLeaf: false, isRecord: true, numChildren: 3},
 				},
-				// Level 3
 				{
 					{key: []byte("l"), isLeaf: false, isRecord: false, numChildren: 3},
 					{key: []byte("ointment"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("roved"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
-				// Level 4
 				{
 					{key: []byte("e"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("i"), isLeaf: false, isRecord: false, numChildren: 2},
 					{key: []byte("y"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
-				// Level 5
 				{
 					{key: []byte("ance"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("cation"), isLeaf: true, isRecord: true, numChildren: 0},
@@ -258,36 +250,30 @@ func TestPut(t *testing.T) {
 			//       └─ b ("14")
 			//          └─ a ("15")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("ax"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 2},
 				},
-				// Level 1
 				{
 					{key: []byte("b"), value: []byte("2"), isLeaf: false, isRecord: true, numChildren: 1},
 					{key: []byte("y"), value: []byte("7"), isLeaf: false, isRecord: true, numChildren: 2},
 				},
-				// Level 2
 				{
 					{key: []byte("y"), value: []byte("3"), isLeaf: false, isRecord: true, numChildren: 1},
 					{key: []byte("b"), value: []byte("8"), isLeaf: false, isRecord: true, numChildren: 1},
 					{key: []byte("z"), value: []byte("11"), isLeaf: false, isRecord: true, numChildren: 2},
 				},
-				// Level 3
 				{
 					{key: []byte("z"), value: []byte("4"), isLeaf: false, isRecord: true, numChildren: 1},
 					{key: []byte("z"), value: []byte("9"), isLeaf: false, isRecord: true, numChildren: 1},
 					{key: []byte("a"), value: []byte("12"), isLeaf: false, isRecord: true, numChildren: 1},
 					{key: []byte("b"), value: []byte("14"), isLeaf: false, isRecord: true, numChildren: 1},
 				},
-				// Level 4
 				{
 					{key: []byte("a"), value: []byte("5"), isLeaf: false, isRecord: true, numChildren: 1},
 					{key: []byte("a"), value: []byte("10"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("b"), value: []byte("13"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("a"), value: []byte("15"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
-				// Level 5
 				{
 					{key: []byte("b"), value: []byte("6"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
@@ -310,16 +296,13 @@ func TestPut(t *testing.T) {
 			// │  └─ e2ac5f198beea10f1e8abf296b9bb9 ("<nil>")
 			// └─ e28a9e6d2f747e3a421646ca5c8f3c0b ("<nil>")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte(nil), isLeaf: false, isRecord: false, numChildren: 2},
 				},
-				// Level 1
 				{
 					{key: []byte("35"), isLeaf: false, isRecord: false, numChildren: 2},
 					{key: []byte("e28a9e6d2f747e3a421646ca5c8f3c0b"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
-				// Level 2
 				{
 					{key: []byte("642e6d587bcdffeb28a33bd1cb6c73"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("e2ac5f198beea10f1e8abf296b9bb9"), isLeaf: true, isRecord: true, numChildren: 0},
@@ -447,7 +430,6 @@ func TestDelete(t *testing.T) {
 			//
 			// aa ("2")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("aa"), value: []byte("2"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
@@ -468,11 +450,9 @@ func TestDelete(t *testing.T) {
 			//ab ("2")
 			//└─ c ("3")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("ab"), value: []byte("2"), isLeaf: false, isRecord: true, numChildren: 1},
 				},
-				// Level 1
 				{
 					{key: []byte("c"), value: []byte("3"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
@@ -497,11 +477,9 @@ func TestDelete(t *testing.T) {
 			// ├─ c ("3")
 			// └─ d ("4")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("a"), value: nil, isLeaf: false, isRecord: false, numChildren: 3},
 				},
-				// Level 1
 				{
 					{key: []byte("b"), value: []byte("2"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("c"), value: []byte("3"), isLeaf: true, isRecord: true, numChildren: 0},
@@ -512,7 +490,41 @@ func TestDelete(t *testing.T) {
 			numRecords: 3,
 		},
 		{
-			name: "internal:single child node",
+			name:         "root:node promotion",
+			deletionKeys: [][]byte{[]byte("a"), []byte("c"), []byte("d")},
+			// Test tree structure:
+			//
+			// .
+			// ├─ a ("1")
+			// ├─ b ("2")
+			// │  └─ x ("3")
+			// ├─ c ("4")
+			// └─ d ("5")
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("b"), value: []byte("2")},
+				{key: []byte("c"), value: []byte("4")},
+				{key: []byte("d"), value: []byte("5")},
+				{key: []byte("bx"), value: []byte("3")},
+			},
+			// Expected tree structure after deletion:
+			//
+			// b ("2")
+			// └─ x ("3")
+			expectedLevels: [][]testNode{
+				{
+					{key: []byte("b"), value: []byte("2"), isLeaf: false, isRecord: true, numChildren: 1},
+				},
+				{
+					{key: []byte("x"), value: []byte("3"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   2,
+			numRecords: 2,
+		},
+		{
+			name:         "internal:single child node",
+			deletionKeys: [][]byte{[]byte("app")},
 			// Test tree structure:
 			//
 			// .
@@ -521,7 +533,6 @@ func TestDelete(t *testing.T) {
 			// │    └─ le ("3")
 			// │      └─ sauce ("4")
 			// └─ banana ("5")
-			deletionKeys: [][]byte{[]byte("app")},
 			records: []testNode{
 				{key: []byte("ap"), value: []byte("1")},
 				{key: []byte("app"), value: []byte("2")},
@@ -536,20 +547,16 @@ func TestDelete(t *testing.T) {
 			// │    └─ sauce ("4")
 			// └─ banana ("5")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: nil, value: nil, isLeaf: false, isRecord: false, numChildren: 2},
 				},
-				// Level 1
 				{
 					{key: []byte("ap"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 1},
 					{key: []byte("banana"), value: []byte("5"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
-				// Level 2
 				{
 					{key: []byte("ple"), value: []byte("3"), isLeaf: false, isRecord: true, numChildren: 1},
 				},
-				// Level 3
 				{
 					{key: []byte("sauce"), value: []byte("4"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
@@ -577,34 +584,28 @@ func TestDelete(t *testing.T) {
 				{key: []byte("android"), value: []byte("2")},
 			},
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("a"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 2},
 				},
-				// Level 1
 				{
 					{key: []byte("ndroid"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("p"), isLeaf: false, isRecord: false, numChildren: 3},
 				},
-				// Level 2
 				{
 					{key: []byte("ex"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("ology"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("p"), isLeaf: false, isRecord: false, numChildren: 3},
 				},
-				// Level 3
 				{
 					{key: []byte("l"), isLeaf: false, isRecord: false, numChildren: 3},
 					{key: []byte("ointment"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("roved"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
-				// Level 4
 				{
 					{key: []byte("e"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("i"), isLeaf: false, isRecord: false, numChildren: 2},
 					{key: []byte("y"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
-				// Level 5
 				{
 					{key: []byte("ance"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("cation"), isLeaf: true, isRecord: true, numChildren: 0},
@@ -624,7 +625,6 @@ func TestDelete(t *testing.T) {
 			//
 			// a ("1")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("a"), value: []byte("1"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
@@ -653,11 +653,9 @@ func TestDelete(t *testing.T) {
 			// ├─ a ("2")
 			// └─ c ("4"
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("a"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 2},
 				},
-				// Level 1
 				{
 					{key: []byte("a"), value: []byte("2"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("c"), value: []byte("4"), isLeaf: true, isRecord: true, numChildren: 0},
@@ -684,16 +682,13 @@ func TestDelete(t *testing.T) {
 			// │  └─ b ("3")
 			// └─ b ("5")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("a"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 2},
 				},
-				// Level 1
 				{
 					{key: []byte("a"), value: []byte("2"), isLeaf: false, isRecord: true, numChildren: 1},
 					{key: []byte("b"), value: []byte("5"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
-				// Level 2
 				{
 					{key: []byte("b"), value: []byte("3"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
@@ -725,11 +720,9 @@ func TestDelete(t *testing.T) {
 			// a ("1")
 			// └─ pricot ("3")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("a"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 1},
 				},
-				// Level 1
 				{
 					{key: []byte("pricot"), value: []byte("3"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
@@ -756,7 +749,6 @@ func TestDelete(t *testing.T) {
 			//
 			// a ("1")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("a"), value: []byte("1"), isLeaf: true, isRecord: true, numChildren: 0},
 				},
@@ -787,11 +779,9 @@ func TestDelete(t *testing.T) {
 			// ├─ plication ("3")
 			// └─ ricot ("4")
 			expectedLevels: [][]testNode{
-				// Level 0
 				{
 					{key: []byte("ap"), value: nil, isLeaf: false, isRecord: false, numChildren: 2},
 				},
-				// Level 1
 				{
 					{key: []byte("plication"), value: []byte("3"), isLeaf: true, isRecord: true, numChildren: 0},
 					{key: []byte("ricot"), value: []byte("4"), isLeaf: true, isRecord: true, numChildren: 0},
@@ -1057,11 +1047,9 @@ func basicTestNodes() []testNode {
 
 func basicTreeLevels() [][]testNode {
 	return [][]testNode{
-		// Level 0
 		{
 			{key: []byte(nil), isLeaf: false, isRecord: false, numChildren: 5},
 		},
-		// Level 1
 		{
 			{key: []byte("ap"), isLeaf: false, isRecord: false, numChildren: 2},
 			{key: []byte("b"), isLeaf: false, isRecord: false, numChildren: 3},
@@ -1069,7 +1057,6 @@ func basicTreeLevels() [][]testNode {
 			{key: []byte("l"), isLeaf: false, isRecord: false, numChildren: 2},
 			{key: []byte("orange"), isLeaf: true, isRecord: true, numChildren: 0},
 		},
-		// Level 2
 		{
 			{key: []byte("pl"), isLeaf: false, isRecord: false, numChildren: 2},
 			{key: []byte("ricot"), isLeaf: true, isRecord: true, numChildren: 0},
@@ -1080,7 +1067,6 @@ func basicTreeLevels() [][]testNode {
 			{key: []byte("emon"), isLeaf: false, isRecord: true, numChildren: 1},
 			{key: []byte("ime"), isLeaf: false, isRecord: true, numChildren: 1},
 		},
-		// Level 3
 		{
 			{key: []byte("e"), isLeaf: false, isRecord: true, numChildren: 1},
 			{key: []byte("ication"), isLeaf: true, isRecord: true, numChildren: 0},
@@ -1089,7 +1075,6 @@ func basicTreeLevels() [][]testNode {
 			{key: []byte("ade"), isLeaf: true, isRecord: true, numChildren: 0},
 			{key: []byte("stone"), isLeaf: true, isRecord: true, numChildren: 0},
 		},
-		// Level 4
 		{
 			{key: []byte("t"), isLeaf: true, isRecord: true, numChildren: 0},
 			{key: []byte("age"), isLeaf: true, isRecord: true, numChildren: 0},
