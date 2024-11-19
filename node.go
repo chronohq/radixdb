@@ -167,3 +167,16 @@ func (n *node) removeChild(child *node) error {
 
 	return ErrKeyNotFound
 }
+
+// shallowCopyFrom copies the properties from the src node to the receiver node.
+// This function performs a shallow copy, meaning that the copied fields share
+// memory references with the original and are not actual copies. The function
+// is intended for cases where sustaining the receiver's address is necessary.
+func (n *node) shallowCopyFrom(src *node) {
+	n.key = src.key
+	n.data = src.data
+	n.isRecord = src.isRecord
+	n.numChildren = src.numChildren
+	n.firstChild = src.firstChild
+	n.nextSibling = src.nextSibling
+}
