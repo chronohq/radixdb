@@ -301,10 +301,14 @@ func (a *Arc) Delete(key []byte) error {
 			child := parent.firstChild
 			child.prependKey(parent.key)
 
+			// Save the parent's sibling before overwriting it.
+			sibling := parent.nextSibling
+
 			// We do not have access to the grandparent, therefore shallow copy
 			// the child node's information to the parent node. This effectively
 			// replaces parent with child within the index tree structure.
 			parent.shallowCopyFrom(child)
+			parent.nextSibling = sibling
 
 			// Decrement for removing the parent node.
 			a.numNodes--
@@ -312,6 +316,13 @@ func (a *Arc) Delete(key []byte) error {
 
 		return nil
 	}
+
+	// Reaching this point means we are deleting a non-root internal node
+	// that has more than one edges. Convert the node to a non-record type.
+	delNode.isRecord = false
+	delNode.data = nil
+
+	a.numRecords--
 
 	return nil
 }

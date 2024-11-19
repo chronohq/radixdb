@@ -427,7 +427,7 @@ func TestDelete(t *testing.T) {
 		numRecords     int
 	}{
 		{
-			name:         "delete root with no children",
+			name:         "root:with no children",
 			deletionKeys: [][]byte{[]byte("a")},
 			records: []testNode{
 				{key: []byte("a"), value: []byte("1")},
@@ -437,7 +437,7 @@ func TestDelete(t *testing.T) {
 			numRecords:     0,
 		},
 		{
-			name:         "delete root with single leaf child",
+			name:         "root:with single leaf child",
 			deletionKeys: [][]byte{[]byte("a")},
 			records: []testNode{
 				{key: []byte("a"), value: []byte("1")},
@@ -456,7 +456,7 @@ func TestDelete(t *testing.T) {
 			numRecords: 1,
 		},
 		{
-			name:         "delete root with single non-leaf child",
+			name:         "root:with single non-leaf child",
 			deletionKeys: [][]byte{[]byte("a")},
 			records: []testNode{
 				{key: []byte("a"), value: []byte("1")},
@@ -481,7 +481,7 @@ func TestDelete(t *testing.T) {
 			numRecords: 2,
 		},
 		{
-			name:         "delete root with multiple children",
+			name:         "root:with multiple children",
 			deletionKeys: [][]byte{[]byte("a")},
 			records: []testNode{
 				{key: []byte("a"), value: []byte("1")},
@@ -512,7 +512,7 @@ func TestDelete(t *testing.T) {
 			numRecords: 3,
 		},
 		{
-			name: "delete internal node with single child",
+			name: "internal:single child node",
 			// Test tree structure:
 			//
 			// .
@@ -558,7 +558,63 @@ func TestDelete(t *testing.T) {
 			numRecords: 4,
 		},
 		{
-			name:         "delete leaf node from single child root",
+			name: "internal:nodes with multiple children",
+			deletionKeys: [][]byte{
+				[]byte("app"), []byte("ap"),
+			},
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("app"), value: []byte("6")},
+				{key: []byte("apple"), value: []byte("7")},
+				{key: []byte("approved"), value: []byte("12")},
+				{key: []byte("apply"), value: []byte("10")},
+				{key: []byte("apex"), value: []byte("4")},
+				{key: []byte("application"), value: []byte("9")},
+				{key: []byte("apology"), value: []byte("5")},
+				{key: []byte("appointment"), value: []byte("11")},
+				{key: []byte("appliance"), value: []byte("8")},
+				{key: []byte("ap"), value: []byte("3")},
+				{key: []byte("android"), value: []byte("2")},
+			},
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("a"), value: []byte("1"), isLeaf: false, isRecord: true, numChildren: 2},
+				},
+				// Level 1
+				{
+					{key: []byte("ndroid"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("p"), isLeaf: false, isRecord: false, numChildren: 3},
+				},
+				// Level 2
+				{
+					{key: []byte("ex"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("ology"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("p"), isLeaf: false, isRecord: false, numChildren: 3},
+				},
+				// Level 3
+				{
+					{key: []byte("l"), isLeaf: false, isRecord: false, numChildren: 3},
+					{key: []byte("ointment"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("roved"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+				// Level 4
+				{
+					{key: []byte("e"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("i"), isLeaf: false, isRecord: false, numChildren: 2},
+					{key: []byte("y"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+				// Level 5
+				{
+					{key: []byte("ance"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("cation"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   14,
+			numRecords: 10,
+		},
+		{
+			name:         "leaf:with single-child root parent",
 			deletionKeys: [][]byte{[]byte("aa")},
 			records: []testNode{
 				{key: []byte("a"), value: []byte("1")},
@@ -577,7 +633,7 @@ func TestDelete(t *testing.T) {
 			numRecords: 1,
 		},
 		{
-			name:         "delete leaf node from multi child root",
+			name:         "leaf:with multi-child root parent",
 			deletionKeys: [][]byte{[]byte("ab")},
 			// Test tree structure:
 			//
@@ -611,34 +667,7 @@ func TestDelete(t *testing.T) {
 			numRecords: 3,
 		},
 		{
-			name:         "delete all leaf nodes from root node",
-			deletionKeys: [][]byte{[]byte("aa"), []byte("ab"), []byte("ac")},
-			// Test tree structure:
-			//
-			// a ("1")
-			// ├─ a ("2")
-			// ├─ b ("3")
-			// └─ c ("4")
-			records: []testNode{
-				{key: []byte("a"), value: []byte("1")},
-				{key: []byte("aa"), value: []byte("2")},
-				{key: []byte("ab"), value: []byte("3")},
-				{key: []byte("ac"), value: []byte("4")},
-			},
-			// Expected tree structure after deletion:
-			//
-			// a ("1")
-			expectedLevels: [][]testNode{
-				// Level 0
-				{
-					{key: []byte("a"), value: []byte("1"), isLeaf: true, isRecord: true, numChildren: 0},
-				},
-			},
-			numNodes:   1,
-			numRecords: 1,
-		},
-		{
-			name:         "delete leaf node from multi level tree",
+			name:         "leaf:from multi level tree",
 			deletionKeys: [][]byte{[]byte("aac"), []byte("aba")},
 			records: []testNode{
 				{key: []byte("a"), value: []byte("1")},
@@ -673,14 +702,14 @@ func TestDelete(t *testing.T) {
 			numRecords: 4,
 		},
 		{
-			name:         "delete leaf node from two child non-record parent",
+			name:         "leaf:non-record parent with two children",
 			deletionKeys: [][]byte{[]byte("apple")},
 			// Test tree structure:
 			//
 			// a ("1")
 			// └─ p ("<nil>")
-			//   ├─ ple ("2")
-			//   └─ ricot ("3")
+			//    ├─ ple ("2")
+			//    └─ ricot ("3")
 			records: []testNode{
 				{key: []byte("a"), value: []byte("1")},
 				{key: []byte("apple"), value: []byte("2")},
@@ -706,6 +735,69 @@ func TestDelete(t *testing.T) {
 				},
 			},
 			numNodes:   2,
+			numRecords: 2,
+		},
+		{
+			name:         "leaf:all nodes",
+			deletionKeys: [][]byte{[]byte("aa"), []byte("ab"), []byte("ac")},
+			// Test tree structure:
+			//
+			// a ("1")
+			// ├─ a ("2")
+			// ├─ b ("3")
+			// └─ c ("4")
+			records: []testNode{
+				{key: []byte("a"), value: []byte("1")},
+				{key: []byte("aa"), value: []byte("2")},
+				{key: []byte("ab"), value: []byte("3")},
+				{key: []byte("ac"), value: []byte("4")},
+			},
+			// Expected tree structure after deletion:
+			//
+			// a ("1")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("a"), value: []byte("1"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   1,
+			numRecords: 1,
+		},
+		{
+			name:         "bottom up branch restructuring",
+			deletionKeys: [][]byte{[]byte("apple"), []byte("applet")},
+			// Test tree structure:
+			//
+			// ap ("<nil>")
+			// ├─ pl ("<nil>")
+			// │  ├─ e ("1")
+			// │  │  └─ t ("2")
+			// │  └─ ication ("3")
+			// └─ ricot ("4")
+			records: []testNode{
+				{key: []byte("apple"), value: []byte("1")},
+				{key: []byte("applet"), value: []byte("2")},
+				{key: []byte("application"), value: []byte("3")},
+				{key: []byte("apricot"), value: []byte("4")},
+			},
+			// Expected tree structure after deletion:
+			//
+			// ap ("<nil>")
+			// ├─ plication ("3")
+			// └─ ricot ("4")
+			expectedLevels: [][]testNode{
+				// Level 0
+				{
+					{key: []byte("ap"), value: nil, isLeaf: false, isRecord: false, numChildren: 2},
+				},
+				// Level 1
+				{
+					{key: []byte("plication"), value: []byte("3"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("ricot"), value: []byte("4"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   3,
 			numRecords: 2,
 		},
 	}
@@ -792,6 +884,28 @@ func TestDelete(t *testing.T) {
 
 		if err := arc.Delete(nil); err != ErrNilKey {
 			t.Fatalf("unexpected result, got:%v, want:%v", err, ErrNilKey)
+		}
+	})
+}
+
+func TestDeleteWithBasicTree(t *testing.T) {
+	t.Run("delete multi-child internal node", func(t *testing.T) {
+		arc := basicTestTree()
+		testKey := []byte("band")
+
+		// Test multi-child internal node deletion.
+		if err := arc.Delete(testKey); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		node, _, err := arc.findNodeAndParent(testKey)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if node.isRecord {
+			t.Error("expected node to be non-record type")
 		}
 	})
 }
