@@ -328,6 +328,13 @@ func TestPut(t *testing.T) {
 			numNodes:   5,
 			numRecords: 3,
 		},
+		{
+			name:           "with basic test nodes",
+			records:        basicTestNodes(),
+			expectedLevels: basicTreeLevels(),
+			numNodes:       basicTreeNumNodes(),
+			numRecords:     len(basicTestNodes()),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -531,6 +538,81 @@ func basicTestTreeData() []node {
 		{key: []byte("orange"), data: []byte("juice")},
 		{key: []byte("band"), data: []byte("practice")},
 	}
+}
+
+func basicTestNodes() []testNode {
+	return []testNode{
+		{key: []byte("grape"), value: []byte("vine")},
+		{key: []byte("bandsaw"), value: []byte("cut")},
+		{key: []byte("applet"), value: []byte("java")},
+		{key: []byte("grapefruit"), value: []byte("citrus")},
+		{key: []byte("apple"), value: []byte("cider")},
+		{key: []byte("banana"), value: []byte("ripe")},
+		{key: []byte("apricot"), value: []byte("fruit")},
+		{key: []byte("bandage"), value: []byte("first-aid")},
+		{key: []byte("blueberry"), value: []byte("jam")},
+		{key: []byte("lemon"), value: []byte("sour")},
+		{key: []byte("berry"), value: []byte("sweet")},
+		{key: []byte("lime"), value: []byte("green")},
+		{key: []byte("lemonade"), value: []byte("refreshing")},
+		{key: []byte("application"), value: []byte("framework")},
+		{key: []byte("limestone"), value: []byte("concrete")},
+		{key: []byte("orange"), value: []byte("juice")},
+		{key: []byte("band"), value: []byte("practice")},
+	}
+}
+
+func basicTreeLevels() [][]testNode {
+	return [][]testNode{
+		// Level 0
+		{
+			{key: []byte(nil), isLeaf: false, isRecord: false, numChildren: 5},
+		},
+		// Level 1
+		{
+			{key: []byte("ap"), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("b"), isLeaf: false, isRecord: false, numChildren: 3},
+			{key: []byte("grape"), isLeaf: false, isRecord: true, numChildren: 1},
+			{key: []byte("l"), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("orange"), isLeaf: true, isRecord: true, numChildren: 0},
+		},
+		// Level 2
+		{
+			{key: []byte("pl"), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("ricot"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("an"), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("erry"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("lueberry"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("fruit"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("emon"), isLeaf: false, isRecord: true, numChildren: 1},
+			{key: []byte("ime"), isLeaf: false, isRecord: true, numChildren: 1},
+		},
+		// Level 3
+		{
+			{key: []byte("e"), isLeaf: false, isRecord: true, numChildren: 1},
+			{key: []byte("ication"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("ana"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("d"), isLeaf: false, isRecord: true, numChildren: 2},
+			{key: []byte("ade"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("stone"), isLeaf: true, isRecord: true, numChildren: 0},
+		},
+		// Level 4
+		{
+			{key: []byte("t"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("age"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("saw"), isLeaf: true, isRecord: true, numChildren: 0},
+		},
+	}
+}
+
+func basicTreeNumNodes() int {
+	ret := 0
+
+	for _, level := range basicTreeLevels() {
+		ret += len(level)
+	}
+
+	return ret
 }
 
 type testNode struct {

@@ -108,6 +108,8 @@ func (n *node) addChild(child *node) {
 
 	// Empty list means the given child becomes the firstChild.
 	if n.firstChild == nil {
+		// Becoming a first child means there are no siblings.
+		child.nextSibling = nil
 		n.firstChild = child
 		return
 	}
