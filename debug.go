@@ -1,3 +1,6 @@
+// Copyright Chrono Technologies LLC
+// SPDX-License-Identifier: MIT
+
 package arc
 
 import "fmt"
