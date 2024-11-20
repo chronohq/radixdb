@@ -862,6 +862,7 @@ func TestDelete(t *testing.T) {
 				for _, deletionKey := range tc.deletionKeys {
 					if bytes.Equal(deletionKey, record.key) {
 						deletedKey = true
+						break
 					}
 				}
 
@@ -870,7 +871,7 @@ func TestDelete(t *testing.T) {
 				}
 
 				if _, err := arc.Get(record.key); err != expected {
-					t.Fatalf("unexpected error: %v", err)
+					t.Fatalf("unexpected error: got:%v, want:%v", err, expected)
 				}
 			}
 		})
@@ -885,26 +886,128 @@ func TestDelete(t *testing.T) {
 	})
 }
 
-func TestDeleteWithBasicTree(t *testing.T) {
-	t.Run("delete multi-child internal node", func(t *testing.T) {
-		arc := basicTestTree()
-		testKey := []byte("band")
+func TestDeleteWithIPStringTree(t *testing.T) {
+	testCases := []struct {
+		name           string
+		deletionKeys   [][]byte
+		expectedLevels [][]testNode
+	}{
+		{
+			name: "delete siblings",
+			deletionKeys: [][]byte{
+				[]byte("0.0.0.1"),
+				[]byte("1.2.3.4"),
+				[]byte("11.22.33.44"),
+				[]byte("32.32.32.32"),
+				[]byte("123.45.67.89"),
+				[]byte("203.202.201.200"),
+				[]byte("252.253.254.255"),
+				[]byte("255.0.0.0"),
+				[]byte("98.76.54.32"),
+			},
+			expectedLevels: [][]testNode{
+				{
+					{key: nil, isLeaf: false, isRecord: false, numChildren: 5},
+				},
+				{
+					{key: []byte("0."), isLeaf: false, isRecord: false, numChildren: 2},
+					{key: []byte("1"), isLeaf: false, isRecord: false, numChildren: 6},
+					{key: []byte("2"), isLeaf: false, isRecord: false, numChildren: 5},
+					{key: []byte("64.64.64.64"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("99.88.77.66"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+				{
+					{key: []byte("0."), isLeaf: false, isRecord: false, numChildren: 2},
+					{key: []byte("255.0.0"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte(".0.0.0"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("00.101.102.103"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("11.111.111.111"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("28.128.128.128"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("50.151.152.153"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("6.16.16.16"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte(".4.6.8"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("00.201.202.203"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("22.222.222.222"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("49.249.249.249"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("5"), isLeaf: false, isRecord: false, numChildren: 6},
+				},
+				{
+					{key: []byte("0.255"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("255.0"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("0.250.250.250"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("1.251.251.251"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("2.252.252.252"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("3.253.253.253"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("4.254.254.254"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("5.254.253.252"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+		},
+	}
 
-		// Test multi-child internal node deletion.
-		if err := arc.Delete(testKey); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			arc := ipStringTestTree()
 
-		node, _, err := arc.findNodeAndParent(testKey)
+			for _, delKey := range tc.deletionKeys {
+				if err := arc.Delete(delKey); err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			}
 
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+			nodesByLevel := collectNodesByLevel(arc.root)
 
-		if node.isRecord {
-			t.Error("expected node to be non-record type")
-		}
-	})
+			if len(nodesByLevel) != len(tc.expectedLevels) {
+				t.Fatalf("unexpected tree depth: got:%d, want:%d", len(nodesByLevel), len(tc.expectedLevels))
+			}
+
+			for level, wantNodes := range tc.expectedLevels {
+				if len(wantNodes) != len(nodesByLevel[level]) {
+					t.Fatalf("invalid node count on level:%d, got:%d, want:%d", level, len(wantNodes), len(nodesByLevel[level]))
+				}
+				for i, want := range wantNodes {
+					got := nodesByLevel[level][i]
+
+					if !bytes.Equal(got.key, want.key) {
+						t.Fatalf("unexpected key: got:%q, want:%q", got.key, want.key)
+					}
+
+					if got.isLeaf() != want.isLeaf {
+						t.Fatalf("unexpected isLeaf: got:%t, want:%t", got.isLeaf(), want.isLeaf)
+					}
+
+					if got.isRecord != want.isRecord {
+						t.Fatalf("unexpected isRecord: got: %t, want:%t", got.isRecord, want.isRecord)
+					}
+
+					if got.numChildren != want.numChildren {
+						t.Fatalf("unexpected numChildren: got:%d, want:%d", got.numChildren, want.numChildren)
+					}
+				}
+			}
+
+			// Ensure that all known keys are fetchable via the public API.
+			for _, node := range ipStringTreeNodes() {
+				var expected error
+				var deletedKey bool
+
+				for _, deletionKey := range tc.deletionKeys {
+					if bytes.Equal(deletionKey, node.key) {
+						deletedKey = true
+						break
+					}
+				}
+
+				if deletedKey {
+					expected = ErrKeyNotFound
+				}
+
+				if _, err := arc.Get(node.key); err != expected {
+					t.Fatalf("unexpected error: got:%v, want:%v", err, expected)
+				}
+			}
+		})
+	}
 }
 
 func collectNodesByLevel(root *node) [][]*node {
@@ -1098,6 +1201,61 @@ func basicTreeNumNodes() int {
 	}
 
 	return ret
+}
+
+func ipStringTestTree() *Arc {
+	// Expected tree structure:
+	// .
+	// ├─ 0. ("<nil>")
+	// │  ├─ 0. ("<nil>")
+	// │  │  ├─ 0. ("<nil>")
+	// │  │  │  ├─ 1 ("1")
+	// │  │  │  └─ 255 ("2")
+	// │  │  └─ 255.0 ("3")
+	// │  └─ 255.0.0 ("4")
+	// ├─ 1 ("<nil>")
+	// │  ├─ . ("<nil>")
+	// │  │  ├─ 0.0.0 ("5")
+	// │  │  └─ 2.3.4 ("6")
+	// │  ├─ 00.101.102.103 ("7")
+	// │  ├─ 1 ("<nil>")
+	// │  │  ├─ .22.33.44 ("8")
+	// │  │  └─ 1.111.111.111 ("9")
+	// │  ├─ 2 ("<nil>")
+	// │  │  ├─ 3.45.67.89 ("10")
+	// │  │  └─ 8.128.128.128 ("11")
+	// │  ├─ 50.151.152.153 ("12")
+	// │  └─ 6.16.16.16 ("13")
+	// ├─ 2 ("<nil>")
+	// │  ├─ .4.6.8 ("14")
+	// │  ├─ 0 ("<nil>")
+	// │  │  ├─ 0.201.202.203 ("15")
+	// │  │  └─ 3.202.201.200 ("16")
+	// │  ├─ 22.222.222.222 ("17")
+	// │  ├─ 49.249.249.249 ("18")
+	// │  └─ 5 ("<nil>")
+	// │     ├─ 0.250.250.250 ("19")
+	// │     ├─ 1.251.251.251 ("20")
+	// │     ├─ 2.25 ("<nil>")
+	// │     │  ├─ 2.252.252 ("21")
+	// │     │  └─ 3.254.255 ("22")
+	// │     ├─ 3.253.253.253 ("23")
+	// │     ├─ 4.254.254.254 ("24")
+	// │     └─ 5. ("<nil>")
+	// │        ├─ 0.0.0 ("25")
+	// │        └─ 254.253.252 ("26")
+	// ├─ 32.32.32.32 ("27")
+	// ├─ 64.64.64.64 ("28")
+	// └─ 9 ("<nil>")
+	//    ├─ 8.76.54.32 ("29")
+	//    └─ 9.88.77.66 ("30")
+	arc := New()
+
+	for _, row := range ipStringTreeNodes() {
+		arc.Put(row.key, row.value)
+	}
+
+	return arc
 }
 
 func ipStringTreeNodes() []testNode {
