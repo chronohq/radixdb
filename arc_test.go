@@ -113,6 +113,28 @@ func TestSplitNode(t *testing.T) {
 	}
 }
 
+func TestAdd(t *testing.T) {
+	testCases := []struct {
+		name string
+		key  []byte
+		want error
+	}{
+		{name: "with nil key", key: nil, want: ErrNilKey},
+		{name: "with existing key", key: []byte("apricot"), want: ErrDuplicateKey},
+		{name: "with non-existing key", key: []byte("lychee"), want: nil},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			arc := basicTestTree()
+
+			if err := arc.Add(tc.key, nil); err != tc.want {
+				t.Errorf("unexpected error: got:%v, want:%v", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestPut(t *testing.T) {
 	testCases := []struct {
 		name           string

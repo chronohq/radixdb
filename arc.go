@@ -16,6 +16,10 @@ var (
 	// ErrCorrupted is returned when a database corruption is detected.
 	ErrCorrupted = errors.New("database corruption detected")
 
+	// ErrDuplicateKey is returned when an insertion is attempted using a
+	// key that already exists in the database.
+	ErrDuplicateKey = errors.New("cannot insert duplicate key")
+
 	// ErrKeyNotFound is returned when the key does not exist in the index.
 	ErrKeyNotFound = errors.New("key not found")
 
@@ -58,13 +62,27 @@ func (a *Arc) Len() int {
 	return a.numRecords
 }
 
-func (a *Arc) empty() bool {
-	return a.root == nil && a.numRecords == 0
+// Add inserts a new key-value pair in the database. It returns ErrDuplicateKey
+// if the key already exists.
+func (a *Arc) Add(key []byte, value []byte) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.insert(key, value, false)
 }
 
-// Put inserts or updates a key-value pair in the database. It returns an error
-// if the key is nil or if either the key or value exceeds size limits.
+// Put inserts or updates a key-value pair in the database.
 func (a *Arc) Put(key []byte, value []byte) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.insert(key, value, true)
+}
+
+// insert adds a key-value pair to the database. If the key already exists and
+// overwrite is true, the existing value is updated. If overwrite is false and
+// the key exists, ErrDuplicateKey is returned. It returns nil on success.
+func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 	if key == nil {
 		return ErrNilKey
 	}
@@ -80,9 +98,6 @@ func (a *Arc) Put(key []byte, value []byte) error {
 	newNode := &node{}
 	newNode.setKey(key)
 	newNode.setValue(value)
-
-	a.mu.Lock()
-	defer a.mu.Unlock()
 
 	// Empty empty: Set newNode as the root.
 	if a.empty() {
@@ -119,6 +134,10 @@ func (a *Arc) Put(key []byte, value []byte) error {
 		// Found exact match. Put() will overwrite the existing value.
 		// Do not update counters because this is an in-place update.
 		if prefixLen == len(current.key) && prefixLen == len(newNode.key) {
+			if !overwrite {
+				return ErrDuplicateKey
+			}
+
 			if !current.isRecord {
 				a.numRecords++
 			}
@@ -369,6 +388,11 @@ func (a *Arc) clear() {
 	a.root = nil
 	a.numNodes = 0
 	a.numRecords = 0
+}
+
+// empty returns true if the database is empty.
+func (a *Arc) empty() bool {
+	return a.root == nil && a.numRecords == 0
 }
 
 // splitNode splits a node based on a common prefix by creating an intermediate
