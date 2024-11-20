@@ -318,6 +318,13 @@ func TestPut(t *testing.T) {
 			numNodes:       basicTreeNumNodes(),
 			numRecords:     len(basicTestNodes()),
 		},
+		{
+			name:           "with ipv4 string keys",
+			records:        ipStringTreeNodes(),
+			expectedLevels: ipStringTreeLevels(),
+			numNodes:       ipStringTreeNumNodes(),
+			numRecords:     len(ipStringTreeNodes()),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -357,15 +364,15 @@ func TestPut(t *testing.T) {
 					}
 
 					if got.isLeaf() != want.isLeaf {
-						t.Fatalf("unexpected isLeaf: got:%t, want:%t", got.isLeaf(), want.isLeaf)
+						t.Fatalf("unexpected isLeaf: key:%q, got:%t, want:%t", got.key, got.isLeaf(), want.isLeaf)
 					}
 
 					if got.isRecord != want.isRecord {
-						t.Fatalf("unexpected isRecord: got: %t, want:%t", got.isRecord, want.isRecord)
+						t.Fatalf("unexpected isRecord: key:%q, got: %t, want:%t", got.key, got.isRecord, want.isRecord)
 					}
 
 					if got.numChildren != want.numChildren {
-						t.Fatalf("unexpected numChildren: got:%d, want:%d", got.numChildren, want.numChildren)
+						t.Fatalf("unexpected numChildren: key:%q, got:%d, want:%d", got.key, got.numChildren, want.numChildren)
 					}
 				}
 			}
@@ -1087,6 +1094,110 @@ func basicTreeNumNodes() int {
 	ret := 0
 
 	for _, level := range basicTreeLevels() {
+		ret += len(level)
+	}
+
+	return ret
+}
+
+func ipStringTreeNodes() []testNode {
+	return []testNode{
+		{key: []byte("111.111.111.111"), value: []byte("9")},
+		{key: []byte("222.222.222.222"), value: []byte("17")},
+		{key: []byte("123.45.67.89"), value: []byte("10")},
+		{key: []byte("98.76.54.32"), value: []byte("29")},
+		{key: []byte("100.101.102.103"), value: []byte("7")},
+		{key: []byte("150.151.152.153"), value: []byte("12")},
+		{key: []byte("0.0.0.1"), value: []byte("1")},
+		{key: []byte("1.0.0.0"), value: []byte("5")},
+		{key: []byte("255.0.0.0"), value: []byte("25")},
+		{key: []byte("0.255.0.0"), value: []byte("4")},
+		{key: []byte("0.0.255.0"), value: []byte("3")},
+		{key: []byte("0.0.0.255"), value: []byte("2")},
+		{key: []byte("249.249.249.249"), value: []byte("18")},
+		{key: []byte("250.250.250.250"), value: []byte("19")},
+		{key: []byte("251.251.251.251"), value: []byte("20")},
+		{key: []byte("252.252.252.252"), value: []byte("21")},
+		{key: []byte("253.253.253.253"), value: []byte("23")},
+		{key: []byte("254.254.254.254"), value: []byte("24")},
+		{key: []byte("1.2.3.4"), value: []byte("6")},
+		{key: []byte("2.4.6.8"), value: []byte("14")},
+		{key: []byte("11.22.33.44"), value: []byte("8")},
+		{key: []byte("99.88.77.66"), value: []byte("30")},
+		{key: []byte("255.254.253.252"), value: []byte("26")},
+		{key: []byte("252.253.254.255"), value: []byte("22")},
+		{key: []byte("128.128.128.128"), value: []byte("11")},
+		{key: []byte("64.64.64.64"), value: []byte("28")},
+		{key: []byte("32.32.32.32"), value: []byte("27")},
+		{key: []byte("16.16.16.16"), value: []byte("13")},
+		{key: []byte("200.201.202.203"), value: []byte("15")},
+		{key: []byte("203.202.201.200"), value: []byte("16")},
+	}
+}
+
+func ipStringTreeLevels() [][]testNode {
+	return [][]testNode{
+		{
+			{key: []byte(nil), isLeaf: false, isRecord: false, numChildren: 6},
+		},
+		{
+			{key: []byte("0."), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("1"), isLeaf: false, isRecord: false, numChildren: 6},
+			{key: []byte("2"), isLeaf: false, isRecord: false, numChildren: 5},
+			{key: []byte("32.32.32.32"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("64.64.64.64"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("9"), isLeaf: false, isRecord: false, numChildren: 2},
+		},
+		{
+			{key: []byte("0."), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("255.0.0"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("."), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("00.101.102.103"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("1"), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("2"), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("50.151.152.153"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("6.16.16.16"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte(".4.6.8"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("0"), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("22.222.222.222"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("49.249.249.249"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("5"), isLeaf: false, isRecord: false, numChildren: 6},
+			{key: []byte("8.76.54.32"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("9.88.77.66"), isLeaf: true, isRecord: true, numChildren: 0},
+		},
+		{
+			{key: []byte("0."), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("255.0"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("0.0.0"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("2.3.4"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte(".22.33.44"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("1.111.111.111"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("3.45.67.89"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("8.128.128.128"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("0.201.202.203"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("3.202.201.200"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("0.250.250.250"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("1.251.251.251"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("2.25"), isLeaf: false, isRecord: false, numChildren: 2},
+			{key: []byte("3.253.253.253"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("4.254.254.254"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("5."), isLeaf: false, isRecord: false, numChildren: 2},
+		},
+		{
+			{key: []byte("1"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("255"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("2.252.252"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("3.254.255"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("0.0.0"), isLeaf: true, isRecord: true, numChildren: 0},
+			{key: []byte("254.253.252"), isLeaf: true, isRecord: true, numChildren: 0},
+		},
+	}
+}
+
+func ipStringTreeNumNodes() int {
+	ret := 0
+
+	for _, level := range ipStringTreeLevels() {
 		ret += len(level)
 	}
 
