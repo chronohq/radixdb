@@ -11,7 +11,8 @@ import "bytes"
 // carefully before adding new fields to this struct.
 type node struct {
 	key         []byte // Path segment of the node.
-	isRecord    bool   // False if the node is a path component.
+	isRecord    bool   // True if the node contains a database record.
+	blobValue   bool   // True if the value is stored in the blobStore.
 	numChildren int    // Number of connected child nodes.
 	firstChild  *node  // Pointer to the first child node.
 	nextSibling *node  // Pointer to the adjacent sibling node.
@@ -30,6 +31,23 @@ func (n node) hasChildren() bool {
 // isLeaf returns true if the receiver node is a leaf node.
 func (n node) isLeaf() bool {
 	return n.firstChild == nil
+}
+
+// value returns a copy of the node's value.
+func (n node) value(bs blobStore) []byte {
+	if n.data == nil {
+		return nil
+	}
+
+	if !n.blobValue {
+		ret := make([]byte, len(n.data))
+		copy(ret, n.data)
+
+		return ret
+	}
+
+	// No need to copy the return value. blobStore handles it.
+	return bs.get(n.data)
 }
 
 // forEachChild loops over the children of the node, and calls the given

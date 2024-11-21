@@ -47,11 +47,14 @@ type Arc struct {
 	numNodes   int          // Number of nodes in the tree.
 	numRecords int          // Number of records in the tree.
 	mu         sync.RWMutex // RWLock for concurrency management.
+
+	// Stores deduplicated values that are larger than 32 bytes.
+	blobs blobStore
 }
 
 // New returns an empty Arc database handler.
 func New() *Arc {
-	return &Arc{}
+	return &Arc{blobs: blobStore{}}
 }
 
 // Len returns the number of records.
@@ -244,7 +247,7 @@ func (a *Arc) Get(key []byte) ([]byte, error) {
 		return nil, ErrKeyNotFound
 	}
 
-	return node.data, nil
+	return node.value(a.blobs), nil
 }
 
 // Delete removes a record that matches the given key.
@@ -375,19 +378,13 @@ func (a *Arc) deleteRootNode() {
 	a.numRecords--
 }
 
-// Clear wipes the database from memory.
-func (a *Arc) Clear() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	a.clear()
-}
-
-// clear wipes the in-memory tree, and resets metadata.
+// clear wipes the in-memory tree, and resets metadata. This function is
+// intended for development and testing purposes only.
 func (a *Arc) clear() {
 	a.root = nil
 	a.numNodes = 0
 	a.numRecords = 0
+	a.blobs = blobStore{}
 }
 
 // empty returns true if the database is empty.
