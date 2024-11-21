@@ -105,6 +105,15 @@ func (n *node) setValue(value []byte) {
 	n.isRecord = true
 }
 
+// deleteValue deletes the node's value and sets the data pointer to nil.
+func (n *node) deleteValue(bs blobStore) {
+	if n.blobValue {
+		bs.release(n.data)
+	}
+
+	n.data = nil
+}
+
 // prependKey prepends the given prefix to the node's existing key.
 func (n *node) prependKey(prefix []byte) {
 	if len(prefix) == 0 {

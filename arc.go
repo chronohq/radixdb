@@ -342,7 +342,7 @@ func (a *Arc) Delete(key []byte) error {
 	// Reaching this point means we are deleting a non-root internal node
 	// that has more than one edges. Convert the node to a non-record type.
 	delNode.isRecord = false
-	delNode.data = nil
+	delNode.deleteValue(a.blobs)
 
 	a.numRecords--
 
@@ -372,7 +372,7 @@ func (a *Arc) deleteRootNode() {
 		// for the tree to sustain its structure. Convert it to a non-record
 		// node by removing its value and flagging it as a non-record node.
 		a.root.isRecord = false
-		a.root.data = nil
+		a.root.deleteValue(a.blobs)
 	}
 
 	a.numRecords--
