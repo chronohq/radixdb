@@ -19,9 +19,9 @@ func (id blobID) Slice() []byte {
 	return id[:]
 }
 
-// newBlobID builds a blobID from the given src byte slice. It requires that the
-// given byte slice length matches the blobID length (32 bytes).
-func newBlobID(src []byte) (blobID, error) {
+// sliceToBlobID creates a blobID from the given byte slice. It requires the
+// given slice length to match the fixed blobID length (32 bytes).
+func sliceToBlobID(src []byte) (blobID, error) {
 	var ret blobID
 
 	if len(src) != blobIDLen {
@@ -31,6 +31,11 @@ func newBlobID(src []byte) (blobID, error) {
 	copy(ret[:], src)
 
 	return ret, nil
+}
+
+// makeBlobID creates a blobID by computing the SHA-256 hash of the src value.
+func makeBlobID(src []byte) blobID {
+	return blobID(sha256.Sum256(src))
 }
 
 // blob represents the blob value and its reference count.
@@ -45,7 +50,7 @@ type blobStore map[blobID]*blob
 
 // get returns the blob that matches the blobID.
 func (bs blobStore) get(id []byte) []byte {
-	blobID, err := newBlobID(id)
+	blobID, err := sliceToBlobID(id)
 
 	if err != nil {
 		return nil
@@ -68,7 +73,7 @@ func (bs blobStore) get(id []byte) []byte {
 // put either creates a new blob and inserts it to the blobStore or increments
 // the refCount of an existing blob. It returns a blobID on success.
 func (bs blobStore) put(value []byte) blobID {
-	k := blobID(sha256.Sum256(value))
+	k := makeBlobID(value)
 
 	if b, found := bs[k]; found {
 		b.refCount++
@@ -82,7 +87,7 @@ func (bs blobStore) put(value []byte) blobID {
 // release decrements the refCount of a blob if it exists for the given blobID.
 // When the refCount reaches zero, the blob is removed from the blobStore.
 func (bs blobStore) release(id []byte) {
-	blobID, err := newBlobID(id)
+	blobID, err := sliceToBlobID(id)
 
 	if err != nil {
 		return

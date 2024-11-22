@@ -5,7 +5,6 @@ package arc
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"testing"
 )
 
@@ -17,9 +16,9 @@ func TestBlobStorePut(t *testing.T) {
 		expectedBlobID   blobID
 		expectedRefCount int
 	}{
-		{[]byte("apple"), sha256.Sum256([]byte("apple")), 1},
-		{[]byte("apple"), sha256.Sum256([]byte("apple")), 2},
-		{[]byte("apple"), sha256.Sum256([]byte("apple")), 3},
+		{[]byte("apple"), makeBlobID([]byte("apple")), 1},
+		{[]byte("apple"), makeBlobID([]byte("apple")), 2},
+		{[]byte("apple"), makeBlobID([]byte("apple")), 3},
 	}
 
 	for _, test := range tests {
