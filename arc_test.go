@@ -334,6 +334,23 @@ func TestPut(t *testing.T) {
 			numRecords: 3,
 		},
 		{
+			name: "with root expanding keys",
+			records: []testNode{
+				{key: []byte("apple"), value: nil},
+				{key: []byte("app"), value: nil},
+			},
+			expectedLevels: [][]testNode{
+				{
+					{key: []byte("app"), isLeaf: false, isRecord: true, numChildren: 1},
+				},
+				{
+					{key: []byte("le"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   2,
+			numRecords: 2,
+		},
+		{
 			name:           "with basic test nodes",
 			records:        basicTestNodes(),
 			expectedLevels: basicTreeLevels(),

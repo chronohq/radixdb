@@ -136,7 +136,7 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 
 		// Found exact match. Put() will overwrite the existing value.
 		// Do not update counters because this is an in-place update.
-		if prefixLen == len(current.key) && prefixLen == len(newNode.key) {
+		if prefixLen == len(current.key) && prefixLen == len(key) {
 			if !overwrite {
 				return ErrDuplicateKey
 			}
@@ -150,19 +150,19 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 			return nil
 		}
 
-		// The longest common prefix matches all of newNode's key but is shorter
+		// The longest common prefix matches the entire key, but is shorter
 		// than current's key. Therefore, newNode becomes the parent of current.
 		//
-		// For example, suppose newNode.key is "app" and current.key is "apple".
+		// For example, suppose the key is "app" and current.key is "apple".
 		// The longest common prefix is "app". Therefore "apple" is updated to
-		// "le", and then becomes a child of "app" (newNode), forming the path:
-		// ["app"(newNode) -> "le"(current)].
-		if prefixLen == len(newNode.key) && prefixLen < len(current.key) {
+		// "le", and then becomes a child of the "app" node, forming the path:
+		// ["app"(new node) -> "le"(current)].
+		if prefixLen == len(key) && prefixLen < len(current.key) {
 			// If the current node is root, then all we need to do is set
 			// newNode as the root. Otherwise replace current with newNode
 			// within the parent's child linked-list.
 			if current == a.root {
-				current.setKey(current.key[len(newNode.key):])
+				current.setKey(current.key[len(key):])
 				newNode.addChild(current)
 				a.root = newNode
 			} else {
@@ -170,7 +170,7 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 					return err
 				}
 
-				current.setKey(current.key[len(newNode.key):])
+				current.setKey(current.key[len(key):])
 				newNode.addChild(current)
 				parent.addChild(newNode)
 			}
@@ -192,7 +192,7 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 		key = key[prefixLen:]
 		nextNode := current.findCompatibleChild(key)
 
-		newNode.setKey(newNode.key[prefixLen:])
+		newNode.setKey(key)
 
 		// Reached the deepest level of the tree for the given key.
 		if nextNode == nil {
