@@ -351,6 +351,63 @@ func TestPut(t *testing.T) {
 			numRecords: 2,
 		},
 		{
+			name: "with parent expanding keys",
+			records: []testNode{
+				// Initial tree structure. The purpose of this test is to verify
+				// that the tree structure remains valid after expanding a parent
+				// node with multiple children.
+				//
+				// * ("1")
+				// ├─ aa ("2")
+				// │  ├─ x ("3")
+				// │  ├─ y ("4")
+				// │  └─ z ("5")
+				// ├─ bb ("6")
+				// └─ cc ("7")
+				{key: []byte("*"), value: []byte("1")},
+				{key: []byte("*aa"), value: []byte("2")},
+				{key: []byte("*aax"), value: []byte("3")},
+				{key: []byte("*aay"), value: []byte("4")},
+				{key: []byte("*aaz"), value: []byte("5")},
+				{key: []byte("*bb"), value: []byte("6")},
+				{key: []byte("*cc"), value: []byte("7")},
+
+				// Force key compression on "*" -> "aa" node by inserting a
+				// key that shares a shorter common prefix: "x" -> "a". The
+				// expected tree structure after the final insertion is:
+				//
+				// * ("1")
+				// ├─ a ("8")
+				// │  └─ a ("2")
+				// │    ├─ x ("3")
+				// │    ├─ y ("4")
+				// │    └─ z ("5")
+				// ├─ bb ("6")
+				// └─ cc ("7")
+				{key: []byte("*a"), value: []byte("8")},
+			},
+			expectedLevels: [][]testNode{
+				{
+					{key: []byte("*"), isLeaf: false, isRecord: true, numChildren: 3},
+				},
+				{
+					{key: []byte("a"), isLeaf: false, isRecord: true, numChildren: 1},
+					{key: []byte("bb"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("cc"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+				{
+					{key: []byte("a"), isLeaf: false, isRecord: true, numChildren: 3},
+				},
+				{
+					{key: []byte("x"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("y"), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("z"), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   8,
+			numRecords: 8,
+		},
+		{
 			name:           "with basic test nodes",
 			records:        basicTestNodes(),
 			expectedLevels: basicTreeLevels(),
