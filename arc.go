@@ -194,27 +194,23 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 
 		newNode.setKey(key)
 
-		// Reached the deepest level of the tree for the given key.
+		// No existing path matches the remaining key portion. The new record
+		// will be inserted as a leaf node. At this point, current's key must
+		// fully match the key prefix because:
+		//
+		// 1. "No common prefix" cases are handled earlier in the function
+		// 2. Partial prefix match would have triggered splitNode()
 		if nextNode == nil {
 			if current == a.root {
 				if a.root.key == nil || prefixLen == len(a.root.key) {
 					a.root.addChild(newNode)
-					a.numNodes++
-				} else {
-					// Make current and newNode siblings by creating a new root.
-					a.root = &node{key: prefix}
-					a.root.addChild(current)
-					a.root.addChild(newNode)
-
-					// Increment by 2 for the new root node and newNode.
-					a.numNodes += 2
 				}
 			} else {
 				// Simple case where newNode becomes a child of the leaf node.
 				current.addChild(newNode)
-				a.numNodes++
 			}
 
+			a.numNodes++
 			a.numRecords++
 			return nil
 		}
