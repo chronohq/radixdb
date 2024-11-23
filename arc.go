@@ -98,28 +98,22 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 		return ErrValueTooLarge
 	}
 
-	newNode := &node{}
-	newNode.setKey(key)
-	newNode.setValue(value)
-
-	// Empty empty: Set newNode as the root.
+	// Empty tree, set the new record node as the root node.
 	if a.empty() {
-		a.root = newNode
+		a.root = newRecordNode(key, value)
 		a.numNodes = 1
 		a.numRecords = 1
 
 		return nil
 	}
 
-	// Given key does not share a common prefix with the existing root node
-	// that holds a non-nil key. Make newNode and the current root siblings
-	// under a new nil-key root node whose purpose is to group top-level keys.
+	// Create a common root node for keys with no shared prefix.
 	if len(a.root.key) > 0 && longestCommonPrefix(a.root.key, key) == nil {
 		oldRoot := a.root
 
 		a.root = &node{key: nil}
 		a.root.addChild(oldRoot)
-		a.root.addChild(newNode)
+		a.root.addChild(newRecordNode(key, value))
 
 		a.numNodes += 2
 		a.numRecords++
@@ -151,28 +145,29 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 		}
 
 		// The longest common prefix matches the entire key, but is shorter
-		// than current's key. Therefore, newNode becomes the parent of current.
+		// than current's key. The new key becomes the parent of current.
 		//
 		// For example, suppose the key is "app" and current.key is "apple".
 		// The longest common prefix is "app". Therefore "apple" is updated to
 		// "le", and then becomes a child of the "app" node, forming the path:
 		// ["app"(new node) -> "le"(current)].
 		if prefixLen == len(key) && prefixLen < len(current.key) {
-			// If the current node is root, then all we need to do is set
-			// newNode as the root. Otherwise replace current with newNode
-			// within the parent's child linked-list.
 			if current == a.root {
 				current.setKey(current.key[len(key):])
-				newNode.addChild(current)
-				a.root = newNode
+
+				a.root = newRecordNode(key, value)
+				a.root.addChild(current)
 			} else {
 				if err := parent.removeChild(current); err != nil {
 					return err
 				}
 
 				current.setKey(current.key[len(key):])
-				newNode.addChild(current)
-				parent.addChild(newNode)
+
+				n := newRecordNode(key, value)
+				n.addChild(current)
+
+				parent.addChild(n)
 			}
 
 			a.numNodes++
@@ -183,7 +178,7 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 
 		// Partial match with key exhaustion: Insert via node splitting.
 		if prefixLen > 0 && prefixLen < len(current.key) {
-			a.splitNode(parent, current, newNode, prefix)
+			a.splitNode(parent, current, newRecordNode(key, value), prefix)
 			return nil
 		}
 
@@ -192,22 +187,21 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 		key = key[prefixLen:]
 		nextNode := current.findCompatibleChild(key)
 
-		newNode.setKey(key)
-
 		// No existing path matches the remaining key portion. The new record
 		// will be inserted as a leaf node. At this point, current's key must
 		// fully match the key prefix because:
 		//
 		// 1. "No common prefix" cases are handled earlier in the function
 		// 2. Partial prefix match would have triggered splitNode()
+		//
+		// TODO(toru): These conditions can likely be further simplified.
 		if nextNode == nil {
 			if current == a.root {
 				if a.root.key == nil || prefixLen == len(a.root.key) {
-					a.root.addChild(newNode)
+					a.root.addChild(newRecordNode(key, value))
 				}
 			} else {
-				// Simple case where newNode becomes a child of the leaf node.
-				current.addChild(newNode)
+				current.addChild(newRecordNode(key, value))
 			}
 
 			a.numNodes++

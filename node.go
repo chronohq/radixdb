@@ -23,6 +23,17 @@ type node struct {
 	data []byte
 }
 
+func newRecordNode(key []byte, value []byte) *node {
+	ret := &node{isRecord: true}
+	ret.setKey(key)
+
+	if value != nil {
+		ret.setValue(value)
+	}
+
+	return ret
+}
+
 // hasChidren returns true if the receiver node has children.
 func (n node) hasChildren() bool {
 	return n.firstChild != nil
