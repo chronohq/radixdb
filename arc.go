@@ -100,7 +100,7 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 
 	// Empty tree, set the new record node as the root node.
 	if a.empty() {
-		a.root = newRecordNode(key, value)
+		a.root = newRecordNode(a.blobs, key, value)
 		a.numNodes = 1
 		a.numRecords = 1
 
@@ -113,7 +113,7 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 
 		a.root = &node{key: nil}
 		a.root.addChild(oldRoot)
-		a.root.addChild(newRecordNode(key, value))
+		a.root.addChild(newRecordNode(a.blobs, key, value))
 
 		a.numNodes += 2
 		a.numRecords++
@@ -139,7 +139,7 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 				a.numRecords++
 			}
 
-			current.setValue(value)
+			current.setValue(a.blobs, value)
 
 			return nil
 		}
@@ -155,7 +155,7 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 			if current == a.root {
 				current.setKey(current.key[len(key):])
 
-				a.root = newRecordNode(key, value)
+				a.root = newRecordNode(a.blobs, key, value)
 				a.root.addChild(current)
 			} else {
 				if err := parent.removeChild(current); err != nil {
@@ -164,7 +164,7 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 
 				current.setKey(current.key[len(key):])
 
-				n := newRecordNode(key, value)
+				n := newRecordNode(a.blobs, key, value)
 				n.addChild(current)
 
 				parent.addChild(n)
@@ -178,7 +178,7 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 
 		// Partial match with key exhaustion: Insert via node splitting.
 		if prefixLen > 0 && prefixLen < len(current.key) {
-			a.splitNode(parent, current, newRecordNode(key, value), prefix)
+			a.splitNode(parent, current, newRecordNode(a.blobs, key, value), prefix)
 			return nil
 		}
 
@@ -198,10 +198,10 @@ func (a *Arc) insert(key []byte, value []byte, overwrite bool) error {
 		if nextNode == nil {
 			if current == a.root {
 				if a.root.key == nil || prefixLen == len(a.root.key) {
-					a.root.addChild(newRecordNode(key, value))
+					a.root.addChild(newRecordNode(a.blobs, key, value))
 				}
 			} else {
-				current.addChild(newRecordNode(key, value))
+				current.addChild(newRecordNode(a.blobs, key, value))
 			}
 
 			a.numNodes++

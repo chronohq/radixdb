@@ -23,12 +23,12 @@ type node struct {
 	data []byte
 }
 
-func newRecordNode(key []byte, value []byte) *node {
+func newRecordNode(bs blobStore, key []byte, value []byte) *node {
 	ret := &node{isRecord: true}
 	ret.setKey(key)
 
 	if value != nil {
-		ret.setValue(value)
+		ret.setValue(bs, value)
 	}
 
 	return ret
@@ -111,7 +111,7 @@ func (n *node) setKey(key []byte) {
 }
 
 // setValue sets the given value to the node and flags it as a record node.
-func (n *node) setValue(value []byte) {
+func (n *node) setValue(_ blobStore, value []byte) {
 	n.data = value
 	n.isRecord = true
 }
