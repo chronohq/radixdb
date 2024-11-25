@@ -40,6 +40,42 @@ func TestBlobStorePut(t *testing.T) {
 	}
 }
 
+func TestBlobThreshold(t *testing.T) {
+	arc := New()
+
+	testCases := []struct {
+		name string
+		key  []byte
+		want []byte
+	}{
+		{"smaller than threshold", []byte("small"), []byte("small value")},
+		{"larger than threshold", []byte("large"), bytes.Repeat([]byte("x"), 64)},
+		{"exactly at the threshold", []byte("exact"), bytes.Repeat([]byte("x"), 32)},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := arc.Put(tc.key, tc.want); err != nil {
+				t.Fatalf("unexpected put() error: %v", err)
+			}
+
+			got, err := arc.Get(tc.key)
+
+			if err != nil {
+				t.Fatalf("unexpected get() error: %v", err)
+			}
+
+			if !bytes.Equal(got, tc.want) {
+				t.Errorf("incorrect value: key:%q, got:%q, want:%q", tc.key, got, tc.want)
+			}
+		})
+	}
+
+	if len(arc.blobs) != 1 {
+		t.Errorf("unexpected blob count: got:%d, want:%d", len(arc.blobs), 1)
+	}
+}
+
 func TestBlobStoreRelease(t *testing.T) {
 	store := blobStore{}
 	value := []byte("pineapple")

@@ -408,6 +408,26 @@ func TestPut(t *testing.T) {
 			numRecords: 8,
 		},
 		{
+			name: "with identical blob values",
+			records: []testNode{
+				{key: []byte("x"), value: blobValueX()},
+				{key: []byte("y"), value: blobValueX()},
+				{key: []byte("z"), value: blobValueX()},
+			},
+			expectedLevels: [][]testNode{
+				{
+					{key: []byte(nil), isLeaf: false, isRecord: false, numChildren: 3},
+				},
+				{
+					{key: []byte("x"), value: blobValueX(), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("y"), value: blobValueX(), isLeaf: true, isRecord: true, numChildren: 0},
+					{key: []byte("z"), value: blobValueX(), isLeaf: true, isRecord: true, numChildren: 0},
+				},
+			},
+			numNodes:   4,
+			numRecords: 3,
+		},
+		{
 			name:           "with basic test nodes",
 			records:        basicTestNodes(),
 			expectedLevels: basicTreeLevels(),
@@ -469,6 +489,21 @@ func TestPut(t *testing.T) {
 
 					if got.numChildren != want.numChildren {
 						t.Fatalf("unexpected numChildren: key:%q, got:%d, want:%d", got.key, got.numChildren, want.numChildren)
+					}
+				}
+			}
+
+			// Test the record values.
+			for _, want := range tc.records {
+				if want.value != nil {
+					got, err := arc.Get(want.key)
+
+					if err != nil {
+						t.Fatalf("unexpected get error: %v", err)
+					}
+
+					if !bytes.Equal(got, want.value) {
+						t.Errorf("unexpected value: got:%q, want:%q", got, want.value)
 					}
 				}
 			}
@@ -1456,6 +1491,10 @@ func ipStringTreeNumNodes() int {
 	}
 
 	return ret
+}
+
+func blobValueX() []byte {
+	return bytes.Repeat([]byte("x"), inlineValueThreshold*2)
 }
 
 type testNode struct {

@@ -38,6 +38,8 @@ const (
 	maxUint32     = (1 << 32) - 1 // maxUint32 is the maximum value of uint32.
 	maxKeyBytes   = maxUint16     // maxKeyBytes is the maximum key size.
 	maxValueBytes = maxUint32     // maxValueBytes is the maximum value size.
+
+	inlineValueThreshold = blobIDLen
 )
 
 // Arc represents the API interface of a space-efficient key-value database that

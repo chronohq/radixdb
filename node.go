@@ -111,8 +111,20 @@ func (n *node) setKey(key []byte) {
 }
 
 // setValue sets the given value to the node and flags it as a record node.
-func (n *node) setValue(_ blobStore, value []byte) {
-	n.data = value
+func (n *node) setValue(bs blobStore, value []byte) {
+	if n.blobValue {
+		bs.release(n.data)
+	}
+
+	if len(value) <= inlineValueThreshold {
+		n.data = value
+		n.blobValue = false
+	} else {
+		id := bs.put(value)
+		n.data = id.Slice()
+		n.blobValue = true
+	}
+
 	n.isRecord = true
 }
 
