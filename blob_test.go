@@ -76,6 +76,48 @@ func TestBlobThreshold(t *testing.T) {
 	}
 }
 
+func TestBlobRefCountAfterPut(t *testing.T) {
+	testCases := []struct {
+		name  string
+		keys  [][]byte
+		value []byte
+		want  int
+	}{
+		{
+			name:  "with identical keys",
+			keys:  [][]byte{[]byte("a"), []byte("a"), []byte("a"), []byte("a")},
+			value: blobValueX(),
+			want:  1,
+		},
+		{
+			name:  "with mixed keys",
+			keys:  [][]byte{[]byte("a"), []byte("b"), []byte("c"), []byte("d")},
+			value: blobValueX(),
+			want:  4,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			arc := New()
+
+			for _, key := range tc.keys {
+				arc.Put(key, tc.value)
+			}
+
+			blob := arc.blobs[makeBlobID(tc.value)]
+
+			if !bytes.Equal(blob.value, tc.value) {
+				t.Fatalf("unexpected blob value: got:%q, want:%q", blob.value, tc.value)
+			}
+
+			if blob.refCount != tc.want {
+				t.Errorf("unexpected refCount: got:%d, want:%d", blob.refCount, tc.want)
+			}
+		})
+	}
+}
+
 func TestBlobStoreRelease(t *testing.T) {
 	store := blobStore{}
 	value := []byte("pineapple")
