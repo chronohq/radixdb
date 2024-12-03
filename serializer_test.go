@@ -1,6 +1,9 @@
 package arc
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 func TestMakePersistentNode(t *testing.T) {
 	testCases := []struct {
@@ -79,6 +82,98 @@ func TestMakePersistentNode(t *testing.T) {
 				if &subject.data[0] != &tc.src.data[0] {
 					t.Errorf("unexpected data address: got:%p, want:%p", &subject.data[0], &tc.src.data[0])
 				}
+			}
+		})
+	}
+}
+
+func TestPersistentNodeSerialize(t *testing.T) {
+	testCases := []struct {
+		name        string
+		node        node
+		children    []node
+		numChildren int
+	}{
+		{
+			name: "with record node",
+			node: node{
+				key:      []byte("app"),
+				data:     []byte("band"),
+				isRecord: true,
+			},
+			children: []node{
+				{key: []byte("le")},
+				{key: []byte("store")},
+			},
+		},
+		{
+			name: "with non-record node",
+			node: node{
+				key:      []byte("app"),
+				data:     nil,
+				isRecord: false,
+			},
+			children: []node{
+				{key: []byte("le")},
+				{key: []byte("store")},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, child := range tc.children {
+				tc.node.addChild(&child)
+			}
+
+			pn := makePersistentNode(tc.node)
+
+			// Set non-zero offsets for test purpose.
+			pn.firstChildOffset = 128
+			pn.nextSiblingOffset = 256
+
+			serializedNode, err := pn.serialize()
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			got, err := makePersistentNodeFromBytes(serializedNode)
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if got.flags != pn.flags {
+				t.Errorf("unexpected flags: got:%d, want:%d", got.flags, pn.flags)
+			}
+
+			if got.numChildren != pn.numChildren {
+				t.Errorf("unexpected numChildren: got:%d, want:%d", got.numChildren, pn.numChildren)
+			}
+
+			if got.keyLen != pn.keyLen {
+				t.Errorf("unexpected keyLen: got:%d, want:%d", got.keyLen, pn.keyLen)
+			}
+
+			if got.dataLen != pn.dataLen {
+				t.Errorf("unexpected dataLen: got:%d, want:%d", got.dataLen, pn.dataLen)
+			}
+
+			if got.firstChildOffset != pn.firstChildOffset {
+				t.Errorf("unexpected firstChildOffset: got:%d, want:%d", got.firstChildOffset, pn.firstChildOffset)
+			}
+
+			if got.nextSiblingOffset != pn.nextSiblingOffset {
+				t.Errorf("unexpected nextSiblingOffset: got:%d, want:%d", got.nextSiblingOffset, pn.nextSiblingOffset)
+			}
+
+			if !bytes.Equal(got.key, pn.key) {
+				t.Errorf("unexpected key: got:%q, want:%q", got.key, pn.key)
+			}
+
+			if !bytes.Equal(got.data, pn.data) {
+				t.Errorf("unexpected key: got:%q, want:%q", got.data, pn.data)
 			}
 		})
 	}

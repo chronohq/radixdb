@@ -20,6 +20,9 @@ var (
 	// key that already exists in the database.
 	ErrDuplicateKey = errors.New("cannot insert duplicate key")
 
+	// ErrInvalidChecksum is returned when the node checksum is invalid.
+	ErrInvalidChecksum = errors.New("invalid checksum detected")
+
 	// ErrKeyNotFound is returned when the key does not exist in the index.
 	ErrKeyNotFound = errors.New("key not found")
 
@@ -28,6 +31,9 @@ var (
 
 	// ErrNilKey is returned when an insertion is attempted using a nil key.
 	ErrNilKey = errors.New("key cannot be nil")
+
+	// ErrNodeCorrupted is returned when an index node corruption is detected.
+	ErrNodeCorrupted = errors.New("index node corruption detected")
 
 	// ErrValueTooLarge is returned when the value size exceeds the 4GB limit.
 	ErrValueTooLarge = errors.New("value is too large")
