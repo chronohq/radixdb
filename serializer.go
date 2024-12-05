@@ -7,6 +7,12 @@ import (
 )
 
 const (
+	// magicByte is the first byte of an Arc file.
+	magicByte = byte(0x41)
+
+	// fileFormatVersion is the database file format version.
+	fileFormatVersion = uint8(1)
+
 	// sizeOfUint8 is the size of uint8 in bytes.
 	sizeOfUint8 = 1
 
@@ -19,14 +25,84 @@ const (
 	// sizeOfUint64 is the size of uint64 in bytes.
 	sizeOfUint64 = 8
 
+	// checksumLen is the length of a checksum in bytes.
+	checksumLen = sizeOfUint32
+
 	// minNodeBytesLen is the minimum length of a serialized node.
 	minNodeBytesLen = sizeOfUint8 + sizeOfUint16 + sizeOfUint16 + sizeOfUint32 + sizeOfUint64 + sizeOfUint64
+
+	// arcHeaderBytesLen is the length of the arc file header.
+	arcHeaderBytesLen = sizeOfUint8 + sizeOfUint8 + sizeOfUint8 + checksumLen
 )
 
+// Index node flags.
 const (
 	flagIsRecord = 1 << iota // 0b00000001
 	flagHasBlob              // 0b00000010
 )
+
+const (
+	arcFileClosed = 0
+	arcFileOpened = 1
+)
+
+type arcHeader struct {
+	magic   byte
+	version byte
+	status  byte
+}
+
+func newArcHeader() arcHeader {
+	return arcHeader{
+		magic:   magicByte,
+		version: fileFormatVersion,
+		status:  arcFileClosed,
+	}
+}
+
+func (ah *arcHeader) serialize() ([]byte, error) {
+	var buf bytes.Buffer
+
+	buf.WriteByte(ah.magic)
+	buf.WriteByte(ah.version)
+	buf.WriteByte(ah.status)
+
+	checksum, err := computeChecksum(buf.Bytes())
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err = binary.Write(&buf, binary.LittleEndian, checksum); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func newArcHeaderFromBytes(src []byte) (arcHeader, error) {
+	var ret arcHeader
+
+	if len(src) != arcHeaderBytesLen {
+		return ret, ErrCorrupted
+	}
+
+	reader := bytes.NewReader(src)
+
+	if err := binary.Read(reader, binary.LittleEndian, &ret.magic); err != nil {
+		return ret, err
+	}
+
+	if err := binary.Read(reader, binary.LittleEndian, &ret.version); err != nil {
+		return ret, err
+	}
+
+	if err := binary.Read(reader, binary.LittleEndian, &ret.status); err != nil {
+		return ret, err
+	}
+
+	return ret, nil
+}
 
 // persistentNode is the on-disk structure of Arc's radix tree node.
 // All fields in this struct are persisted in the same order.
@@ -85,7 +161,7 @@ func makePersistentNodeFromBytes(src []byte) (persistentNode, error) {
 
 	nodeData := src[:len(src)-sizeOfUint32]
 
-	if gotChecksum, err = computeNodeChecksum(nodeData); err != nil {
+	if gotChecksum, err = computeChecksum(nodeData); err != nil {
 		return ret, err
 	}
 
@@ -191,7 +267,7 @@ func (pn persistentNode) serialize() ([]byte, error) {
 	}
 
 	// Append the checksum at the end of the serialized node.
-	checksum, err := computeNodeChecksum(buf.Bytes())
+	checksum, err := computeChecksum(buf.Bytes())
 
 	if err != nil {
 		return nil, err
@@ -204,7 +280,7 @@ func (pn persistentNode) serialize() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func computeNodeChecksum(src []byte) (uint32, error) {
+func computeChecksum(src []byte) (uint32, error) {
 	h := crc32.NewIEEE()
 
 	if _, err := h.Write(src); err != nil {

@@ -5,6 +5,54 @@ import (
 	"testing"
 )
 
+func TestArcHeaderSerialize(t *testing.T) {
+	testCases := []struct {
+		name   string
+		header arcHeader
+	}{
+		{
+			name:   "with a new default header",
+			header: newArcHeader(),
+		},
+		{
+			name: "with arcFileOpened status",
+			header: arcHeader{
+				magic:   magicByte,
+				version: fileFormatVersion,
+				status:  arcFileOpened,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			bytes, err := tc.header.serialize()
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			subject, err := newArcHeaderFromBytes(bytes)
+
+			if err != nil {
+				t.Fatalf("newArcHeaderFromBytes(): %v", err)
+			}
+
+			if subject.magic != tc.header.magic {
+				t.Errorf("unexpected magicByte: got:%d, want:%d", subject.magic, tc.header.magic)
+			}
+
+			if subject.version != tc.header.version {
+				t.Errorf("unexpected version: got:%d, want:%d", subject.version, tc.header.version)
+			}
+
+			if subject.status != tc.header.status {
+				t.Errorf("unexpected status: got:%d, want:%d", subject.status, tc.header.status)
+			}
+		})
+	}
+}
+
 func TestMakePersistentNode(t *testing.T) {
 	testCases := []struct {
 		name     string
